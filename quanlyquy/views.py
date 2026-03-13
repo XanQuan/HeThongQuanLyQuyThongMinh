@@ -219,89 +219,105 @@ def dashboard(request):
 # ==========================================
 @login_required
 def giao_dich_view(request):
+    # 1. Lấy toàn bộ giao dịch
     giao_dich_list_raw = GiaoDich.objects.all().select_related('thanh_vien').order_by('-ngay_tao')
-    q = request.GET.get('search')
+    
+    # 2. Lấy tham số tìm kiếm & Lọc từ URL (GET Request)
+    q = request.GET.get('search', '').strip()
+    tx_type = request.GET.get('type', '') # Sẽ là 'THU' hoặc 'CHI'
+
+    # 3. XỬ LÝ TÌM KIẾM GLOBAL (Quét toàn bộ DB)
     if q:
-        giao_dich_list_raw = giao_dich_list_raw.filter(
-            Q(thanh_vien__ho_ten__icontains=q) | Q(thanh_vien__mssv__icontains=q) | Q(ly_do__icontains=q)
+        # Điều kiện cơ bản: Tìm theo Lý do, HOẶC (Tìm theo Tên/MSSV nhưng bắt buộc KHÔNG ẨN DANH)
+        search_condition = Q(ly_do__icontains=q) | (
+            Q(is_an_danh=False) & (Q(thanh_vien__ho_ten__icontains=q) | Q(thanh_vien__mssv__icontains=q))
         )
+        
+        # Cú lừa tinh tế: Nếu người dùng cố tình gõ chữ "hảo tâm" hoặc "ẩn danh" 
+        # thì mới cho phép hiển thị các giao dịch is_an_danh=True
+        if "hảo tâm" in q.lower() or "ẩn danh" in q.lower():
+            search_condition |= Q(is_an_danh=True)
+
+        giao_dich_list_raw = giao_dich_list_raw.filter(search_condition)
+
+    # 4. XỬ LÝ LỌC THU/CHI GLOBAL (Quét toàn bộ DB)
+    if tx_type == 'THU':
+        giao_dich_list_raw = giao_dich_list_raw.filter(loai__in=['THU', 'LAI', 'HU'])
+    elif tx_type == 'CHI':
+        giao_dich_list_raw = giao_dich_list_raw.filter(loai__in=['CHI', 'TU'])
+
+    # Format tiền
     for gd in giao_dich_list_raw:
         gd.so_tien_format = format_money(gd.so_tien)
 
-    paginator = Paginator(giao_dich_list_raw, 15)
+    # 5. Phân trang (Hiển thị 10 dòng/trang cho dễ nhìn)
+    paginator = Paginator(giao_dich_list_raw, 10) 
     page_number = request.GET.get('page')
     giao_dich_list = paginator.get_page(page_number)
 
+    # 6. Gửi biến ra giao diện
     return render(request, 'quanlyquy/page_giao_dich.html', {
         'giao_dich_list': giao_dich_list,
-        'search_query': q or "",
+        'search_query': q,
+        'current_type': tx_type, # Gửi lại type để giữ state của Dropdown
         'is_admin': is_thu_quy(request.user)
     })
-
 @login_required
 def thong_ke_view(request):
-    is_admin = is_thu_quy(request.user)
-    
-    # Chart 1: Dòng tiền 6 tháng
-    stats = GiaoDich.objects.annotate(month=TruncMonth('ngay_tao')).values('month').annotate(
+    # 1. BIỂU ĐỒ 1: Dòng tiền 6 tháng (Tính TỔNG TIỀN - Sum)
+    stats = GiaoDich.objects.annotate(m=TruncMonth('ngay_tao')).values('m').annotate(
         thu=Sum('so_tien', filter=Q(loai__in=['THU', 'LAI', 'HU'])),
         chi=Sum('so_tien', filter=Q(loai__in=['CHI', 'TU']))
-    ).order_by('-month')[:6]
+    ).order_by('m')
     
-    stats_list = list(stats)[::-1]
-    chart1_labels = [s['month'].strftime("Th%m/%y") for s in stats_list if s['month']]
-    chart1_thu = [float(s['thu'] or 0) for s in stats_list]
-    chart1_chi = [float(s['chi'] or 0) for s in stats_list]
+    # Lấy 6 tháng cuối cùng
+    last_6_stats = list(stats)[-6:]
+    c1_labels = [s['m'].strftime("Th %m/%y") for s in last_6_stats if s['m']]
+    c1_thu = [float(s['thu'] or 0) for s in last_6_stats]
+    c1_chi = [float(s['chi'] or 0) for s in last_6_stats]
 
-    # Chart 2: Cơ cấu chi tiêu (Đã tối ưu: Lấy theo Danh mục thay vì Lý do)
-    chi_tieu_db = GiaoDich.objects.filter(loai='CHI').values('danh_muc__ten_danh_muc').annotate(
-        tong_chi=Sum('so_tien')
-    ).order_by('-tong_chi')[:5]
-    
-    chart2_labels = [item['danh_muc__ten_danh_muc'] or "Chi phí khác" for item in chi_tieu_db]
-    chart2_data = [float(item['tong_chi']) for item in chi_tieu_db]
+    # 2. BIỂU ĐỒ 2: Cơ cấu chi tiêu (Top 5 danh mục chi nhiều nhất)
+    chi_tieu_db = GiaoDich.objects.filter(loai__in=['CHI', 'TU']).values('danh_muc__ten_danh_muc').annotate(
+        tong=Sum('so_tien')).order_by('-tong')[:5]
+    c2_labels = [item['danh_muc__ten_danh_muc'] or "Khác" for item in chi_tieu_db]
+    c2_data = [float(item['tong'] or 0) for item in chi_tieu_db]
 
-    # Chart 3: Top đóng góp
+    # 3. BIỂU ĐỒ 3: Top 5 Thành viên đóng góp (Bảo mật: Không hiện người ẩn danh)
     top_members = ThanhVien.objects.annotate(
-        tong_dong_gop=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU'))
-    ).order_by('-tong_dong_gop')[:5]
-    chart3_labels = [m.ho_ten for m in top_members]
-    chart3_data = [float(m.tong_dong_gop or 0) for m in top_members]
+        tong=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU', giaodich__is_an_danh=False))
+    ).filter(tong__gt=0).order_by('-tong')[:5]
+    c3_labels = [m.ho_ten for m in top_members]
+    c3_data = [float(m.tong or 0) for m in top_members]
 
-    # Chart 4: Thống kê nợ theo đợt thu
+    # 4. BIỂU ĐỒ 4: Tiến độ thu theo Đợt (Nợ và Đã thu)
     dot_thu_list = DotThu.objects.all().order_by('-id')[:4]
     tong_tv = ThanhVien.objects.count()
-    chart4_labels = []; chart4_da_thu = []; chart4_no = []
-    
+    c4_labels = []; c4_dathu = []; c4_no = []
     for dt in dot_thu_list:
-        chart4_labels.append(dt.ten_dot)
+        c4_labels.append(dt.ten_dot)
         da_thu = float(GiaoDich.objects.filter(dot_thu=dt, loai='THU').aggregate(Sum('so_tien'))['so_tien__sum'] or 0)
-        tong_can_thu = float(dt.so_tien_moi_nguoi * tong_tv)
-        chart4_da_thu.append(da_thu)
-        chart4_no.append(max(0, tong_can_thu - da_thu))
+        tong_phai_thu = float(dt.so_tien_moi_nguoi * tong_tv)
+        c4_dathu.append(da_thu)
+        c4_no.append(max(0, tong_phai_thu - da_thu))
 
-    # Chart 5: Tồn quỹ
+    # 5. BIỂU ĐỒ 5: Phân bổ tiền mặt giữa các quỹ
     quys = LoaiQuy.objects.all()
-    chart5_labels = []; chart5_data = []
-    for q in quys:
-        chart5_labels.append(q.ten_quy)
-        chart5_data.append(max(0, float(q.so_du_hien_tai)))
+    c5_labels = [q.ten_quy for q in quys]
+    c5_data = [float(q.so_du_hien_tai or 0) for q in quys]
 
     context = {
-        'is_admin': is_admin,
-        'user_role_name': "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp",
-        'chart1_labels': json.dumps(chart1_labels),
-        'chart1_thu': json.dumps(chart1_thu),
-        'chart1_chi': json.dumps(chart1_chi),
-        'chart2_labels': json.dumps(chart2_labels),
-        'chart2_data': json.dumps(chart2_data),
-        'chart3_labels': json.dumps(chart3_labels),
-        'chart3_data': json.dumps(chart3_data),
-        'chart4_labels': json.dumps(chart4_labels),
-        'chart4_da_thu': json.dumps(chart4_da_thu),
-        'chart4_no': json.dumps(chart4_no),
-        'chart5_labels': json.dumps(chart5_labels),
-        'chart5_data': json.dumps(chart5_data),
+        'chart1_labels': json.dumps(c1_labels),
+        'chart1_thu': json.dumps(c1_thu),
+        'chart1_chi': json.dumps(c1_chi),
+        'chart2_labels': json.dumps(c2_labels),
+        'chart2_data': json.dumps(c2_data),
+        'chart3_labels': json.dumps(c3_labels),
+        'chart3_data': json.dumps(c3_data),
+        'chart4_labels': json.dumps(c4_labels),
+        'chart4_dathu': json.dumps(c4_dathu),
+        'chart4_no': json.dumps(c4_no),
+        'chart5_labels': json.dumps(c5_labels),
+        'chart5_data': json.dumps(c5_data),
     }
     return render(request, 'quanlyquy/thong_ke.html', context)
 

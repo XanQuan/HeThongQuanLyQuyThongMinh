@@ -12,6 +12,8 @@
     
     <link rel="stylesheet" href="{% static 'quanlyquy/css/giao_dich.css' %}">
     <link rel="stylesheet" href="{% static 'quanlyquy/css/dashboard.css' %}">
+    
+    <meta name="csrf-token" content="{{ csrf_token }}">
 </head>
 <body class="theme-transaction">
 
@@ -60,22 +62,17 @@
             <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px 10px;">Planning & Stats</div>
             <a href="/tien-do/" class="{% if '/tien-do/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
                 <i class="fa-solid fa-calendar-days" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tiến Độ Đợt Thu</span>
-                <div class="dot-indicator {% if '/tien-do/' in request.path %}pulse-dot{% endif %}" style="background: #46DFB1; color: #46DFB1; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
             </a>
             <a href="/thong-ke/" class="{% if '/thong-ke/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
                 <i class="fa-solid fa-chart-pie" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Phân Tích Dòng Tiền</span>
-                <div class="dot-indicator {% if '/thong-ke/' in request.path %}pulse-dot{% endif %}" style="background: #5483B3; color: #5483B3; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
             </a>
 
             <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px 10px;">Gamification</div>
             <a href="/gamification/" class="{% if '/gamification/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
                 <i class="fa-solid fa-gamepad" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Khu Vui Chơi</span>
-                <div class="dot-indicator {% if '/gamification/' in request.path %}pulse-dot{% endif %}" style="background: #D3A376; color: #D3A376; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
             </a>
             <a href="/cua-hang/" class="{% if '/cua-hang/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-                 <i class="fa-solid fa-store" style="font-size: 18px; width: 24px; text-align: center;"></i> 
-                   <span>Cửa Hàng Đổi Quà</span>
-                 <div class="dot-indicator {% if '/cua-hang/' in request.path %}pulse-dot{% endif %}" style="background: #F6BCBA; color: #F6BCBA; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
+                 <i class="fa-solid fa-store" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Cửa Hàng Đổi Quà</span>
             </a>
 
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
@@ -121,20 +118,22 @@
                 </div>
             </div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 25px;">
-                <form method="GET" action="/giao-dich/" style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 400px; background: #f8fafc; padding: 10px 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin: 0;">
+            <form method="GET" action="/giao-dich/" style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 25px;">
+                
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 400px; background: #f8fafc; padding: 10px 20px; border-radius: 12px; border: 1px solid #e2e8f0; margin: 0;">
                     <i class="fa-solid fa-magnifying-glass text-light"></i>
-                    <input type="text" name="search" value="{{ search_query|default:'' }}" id="searchInput" placeholder="Tìm kiếm theo lý do, tên, MSSV (Bấm Ctrl+F)" style="border: none; background: transparent; outline: none; width: 100%; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-dark);">
-                </form>
+                    <input type="text" name="search" value="{{ search_query|default:'' }}" id="searchInput" placeholder="Tìm kiếm theo lý do, tên, MSSV..." style="border: none; background: transparent; outline: none; width: 100%; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-dark);">
+                    <button type="submit" style="display: none;"></button>
+                </div>
                 
                 <div style="display: flex; gap: 15px;">
-                    <select class="custom-select" id="typeFilter">
-                        <option value="ALL">Tất cả giao dịch</option>
-                        <option value="THU">Chỉ dòng tiền Thu Vào</option>
-                        <option value="CHI">Chỉ dòng tiền Chi Ra</option>
+                    <select name="type" onchange="this.form.submit()" class="custom-select" style="padding: 10px 20px; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; color: var(--text-dark); font-weight: 600; outline: none; cursor: pointer;">
+                        <option value="" {% if current_type == '' %}selected{% endif %}>Tất cả giao dịch</option>
+                        <option value="THU" {% if current_type == 'THU' %}selected{% endif %}>Chỉ dòng tiền Thu Vào</option>
+                        <option value="CHI" {% if current_type == 'CHI' %}selected{% endif %}>Chỉ dòng tiền Chi Ra</option>
                     </select>
                 </div>
-            </div>
+            </form>
 
             <div style="background: white; border: 1px solid #e2e8f0; border-radius: 24px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.02);">
                 
@@ -149,18 +148,12 @@
 
                 <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
                     {% for gd in giao_dich_list %}
-                    <div class="hover-lift tx-row" data-type="{{ gd.loai }}" style="display: flex; padding: 15px 0; border-bottom: 1px solid #f8fafc; align-items: center; transition: 0.2s;">
+                    <div class="hover-lift tx-row" style="display: flex; padding: 15px 0; border-bottom: 1px solid #f8fafc; align-items: center; transition: 0.2s;">
+                        <div style="flex: 1.5; color: #64748b; font-size: 13px;">{{ gd.ngay_tao|date:"d/m/Y - H:i" }}</div>
+                        <div style="flex: 2.5; color: var(--text-dark); font-weight: 700; font-size: 13px; padding-right: 15px;">{{ gd.ly_do }}</div>
                         
-                        <div style="flex: 1.5; color: #64748b; font-size: 13px;">
-                            {{ gd.ngay_tao|date:"d/m/Y - H:i" }}
-                        </div>
-
-                        <div style="flex: 2.5; color: var(--text-dark); font-weight: 700; font-size: 13px; padding-right: 15px;">
-                            {{ gd.ly_do }}
-                        </div>
-
                         <div style="flex: 2; display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 35px; height: 35px; border-radius: 50%; background: {% if gd.is_an_danh %}#334155{% else %}var(--theme-primary){% endif %}; display: flex; justify-content: center; align-items: center; color: #fff; font-weight: 800; font-size: 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="width: 35px; height: 35px; border-radius: 50%; background: {% if gd.is_an_danh %}#334155{% else %}var(--theme-primary){% endif %}; display: flex; justify-content: center; align-items: center; color: #fff; font-weight: 800; font-size: 14px;">
                                 {% if gd.is_an_danh %}<i class="fa-solid fa-user-ninja"></i>{% else %}{{ gd.thanh_vien.ho_ten|slice:":1"|upper|default:"?" }}{% endif %}
                             </div>
                             <div>
@@ -185,7 +178,7 @@
                         </div>
 
                         <div style="flex: 1.5; text-align: right; font-weight: 900; font-size: 14px; color: {% if gd.loai == 'THU' or gd.loai == 'LAI' %}#10b981{% else %}#ef4444{% endif %};">
-                            {% if gd.loai == 'THU' or gd.loai == 'LAI' %}+{% else %}-{% endif %}{{ gd.so_tien }} đ
+                            {% if gd.loai == 'THU' or gd.loai == 'LAI' %}+{% else %}-{% endif %}{{ gd.so_tien_format }} đ
                         </div>
 
                         {% if is_admin %}
@@ -193,32 +186,52 @@
                             <a href="/admin/quanlyquy/giaodich/{{ gd.id }}/change/" style="background: #f1f5f9; color: #64748b; padding: 8px 12px; border-radius: 8px; transition: 0.2s;" class="hover-scale"><i class="fa-solid fa-pen"></i></a>
                         </div>
                         {% endif %}
-
                     </div>
                     {% empty %}
                     <div style="text-align: center; padding: 40px 0; color: #64748b; font-style: italic;">
                         <i class="fa-solid fa-file-invoice-dollar" style="display:block; font-size: 24px; margin-bottom: 10px;"></i>
-                        Hệ thống chưa ghi nhận giao dịch nào.
+                        Không tìm thấy giao dịch nào phù hợp với bộ lọc.
                     </div>
                     {% endfor %}
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px;">
-                    <span style="color: #64748b; font-size: 13px; font-weight: 600;">
-                        Đang hiển thị trang {{ giao_dich_list.number|default:1 }} / {{ giao_dich_list.paginator.num_pages|default:1 }}
-                    </span>
-                    <div style="display: flex; gap: 10px;">
-                        {% if giao_dich_list.has_previous %}
-                            <a href="?page={{ giao_dich_list.previous_page_number }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none;"><i class="fa-solid fa-chevron-left"></i> Trước</a>
-                        {% endif %}
-                        {% if giao_dich_list.has_next %}
-                            <a href="?page={{ giao_dich_list.next_page_number }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none;">Sau <i class="fa-solid fa-chevron-right"></i></a>
-                        {% endif %}
-                    </div>
-                </div>
-            </div> 
+    <span style="color: #64748b; font-size: 13px; font-weight: 600;">
+        Đang hiển thị trang {{ giao_dich_list.number|default:1 }} / {{ giao_dich_list.paginator.num_pages|default:1 }}
+    </span>
+    
+    <div style="display: flex; gap: 8px;">
+        
+        {% if giao_dich_list.number > 1 %}
+            <a href="?page=1&search={{ search_query }}&type={{ current_type }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none; transition: 0.2s;" class="hover-bg-light" title="Về trang đầu"><i class="fa-solid fa-angles-left"></i> Đầu</a>
+        {% endif %}
+
+        {% if giao_dich_list.has_previous %}
+            <a href="?page={{ giao_dich_list.previous_page_number }}&search={{ search_query }}&type={{ current_type }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none; transition: 0.2s;" class="hover-bg-light"><i class="fa-solid fa-chevron-left"></i></a>
+        {% endif %}
+
+        {% for num in giao_dich_list.paginator.page_range %}
+            {% if num == giao_dich_list.number %}
+                <span style="background: var(--theme-primary); color: white; padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 800; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">{{ num }}</span>
+            {% elif num > giao_dich_list.number|add:'-3' and num < giao_dich_list.number|add:'3' %}
+                <a href="?page={{ num }}&search={{ search_query }}&type={{ current_type }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none; transition: 0.2s;" class="hover-bg-light">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
+
+        {% if giao_dich_list.has_next %}
+            <a href="?page={{ giao_dich_list.next_page_number }}&search={{ search_query }}&type={{ current_type }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none; transition: 0.2s;" class="hover-bg-light"><i class="fa-solid fa-chevron-right"></i></a>
+        {% endif %}
+
+        {% if giao_dich_list.number < giao_dich_list.paginator.num_pages %}
+            <a href="?page={{ giao_dich_list.paginator.num_pages }}&search={{ search_query }}&type={{ current_type }}" style="background: white; border: 1px solid #e2e8f0; color: var(--text-dark); padding: 8px 15px; border-radius: 10px; font-size: 12px; font-weight: 700; text-decoration: none; transition: 0.2s;" class="hover-bg-light" title="Đến trang cuối">Cuối <i class="fa-solid fa-angles-right"></i></a>
+        {% endif %}
+    </div>
+</div>
+                </div> 
         </div>
-    </div> <div class="modal-overlay" id="userProfileModal">
+    </div> 
+
+    <div class="modal-overlay" id="userProfileModal">
         <div class="modal-content" style="width: 380px; text-align: center;">
             <div class="modal-header" style="justify-content: flex-end; margin-bottom: 0;">
                 <button class="modal-close" onclick="closeModal('userProfileModal')"><i class="fa-solid fa-xmark"></i></button>
@@ -254,12 +267,12 @@
             </div>
             <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="toggleChatbot()"></i>
         </div>
-        <div id="chat-body" style="flex: 1; padding: 20px; background: #f8fafc; overflow-y: auto;">
-            <div style="background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">Chào bạn! Cần tra cứu gì nào?</div>
+        <div id="chat-body" style="flex: 1; padding: 20px; background: #f8fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
+            <div style="background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-self: flex-start;">Chào bạn! Bạn cần tra cứu số dư hay thông tin nợ nào?</div>
         </div>
-        <div style="padding: 15px; display: flex; gap: 10px; background: white; border-radius: 0 0 24px 24px;">
-            <input type="text" id="chat-input" placeholder="Nhập câu hỏi..." style="flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #e2e8f0; outline: none;">
-            <button onclick="sendChatMessage()" style="width: 40px; height: 40px; border-radius: 50%; background: var(--theme-primary); color: white; border: none; cursor: pointer;"><i class="fa-solid fa-paper-plane"></i></button>
+        <div style="padding: 15px; display: flex; gap: 10px; background: white; border-radius: 0 0 24px 24px; border-top: 1px solid #f1f5f9;">
+            <input type="text" id="chat-input" placeholder="Nhập câu hỏi..." onkeypress="if(event.key === 'Enter') sendChatMessage()" style="flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
+            <button onclick="sendChatMessage()" style="width: 40px; height: 40px; border-radius: 50%; background: var(--theme-primary); color: white; border: none; cursor: pointer; transition: 0.2s;" class="hover-scale"><i class="fa-solid fa-paper-plane"></i></button>
         </div>
     </div>
 
@@ -269,34 +282,86 @@
     </div>
     {% endif %}
 
+    <style>
+        .hover-bg-light:hover { background: #f1f5f9 !important; }
+        .hover-scale:hover { transform: scale(1.05); }
+        /* CSS nhấp nháy cho Bot khi đang suy nghĩ */
+        @keyframes typing { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        .bot-typing { animation: typing 1.5s infinite; font-style: italic; color: #64748b; }
+    </style>
+
     <script>
-        // Bắt cầu biến môi trường cho JS
         const IS_ADMIN = {% if is_admin %}true{% else %}false{% endif %};
         
-        function openBugBounty() { document.getElementById('bugBountyModal').style.display = 'flex'; }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        
         function toggleChatbot() {
             const bot = document.getElementById('chatbot-window');
             if(bot.style.transform === 'scale(0)' || bot.style.transform === '') {
                 bot.style.transform = 'scale(1)'; bot.style.opacity = '1';
+                setTimeout(() => document.getElementById('chat-input').focus(), 300);
             } else {
                 bot.style.transform = 'scale(0)'; bot.style.opacity = '0';
             }
         }
-        function sendChatMessage() {
+
+        // HÀM CHATBOT NÂNG CẤP KẾT NỐI VỚI BACKEND API
+        async function sendChatMessage() {
             const input = document.getElementById('chat-input');
             const body = document.getElementById('chat-body');
-            if (input.value.trim() !== '') {
-                const msg = document.createElement('div');
-                msg.style.cssText = "align-self: flex-end; background: var(--theme-primary); color: white; padding: 10px 15px; border-radius: 15px 0 15px 15px; font-size: 13px; max-width: 80%; margin-top: 10px;";
-                msg.innerText = input.value;
-                body.appendChild(msg);
+            const message = input.value.trim();
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            if (message !== '') {
+                // 1. In tin nhắn của User lên màn hình
+                const userMsg = document.createElement('div');
+                userMsg.style.cssText = "align-self: flex-end; background: var(--theme-primary); color: white; padding: 10px 15px; border-radius: 15px 15px 0 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
+                userMsg.innerText = message;
+                body.appendChild(userMsg);
                 input.value = '';
                 body.scrollTop = body.scrollHeight;
+
+                // 2. Hiện trạng thái "Bot đang gõ..."
+                const botTyping = document.createElement('div');
+                botTyping.className = "bot-typing";
+                botTyping.style.cssText = "align-self: flex-start; padding: 5px 10px; font-size: 12px;";
+                botTyping.innerText = "Bot đang suy nghĩ...";
+                body.appendChild(botTyping);
+                body.scrollTop = body.scrollHeight;
+
+                try {
+                    // 3. Gửi Request lên API Django
+                    const response = await fetch('/api/chatbot/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    // Xóa chữ "Đang gõ"
+                    body.removeChild(botTyping);
+
+                    // 4. In câu trả lời của Bot ra màn hình
+                    const botMsg = document.createElement('div');
+                    botMsg.style.cssText = "align-self: flex-start; background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); line-height: 1.5;";
+                    botMsg.innerHTML = data.reply; // Dùng innerHTML để render các thẻ <b>, <br> từ Backend
+                    body.appendChild(botMsg);
+                    body.scrollTop = body.scrollHeight;
+
+                } catch (error) {
+                    body.removeChild(botTyping);
+                    const errorMsg = document.createElement('div');
+                    errorMsg.style.cssText = "align-self: flex-start; background: #fee2e2; color: #ef4444; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%;";
+                    errorMsg.innerText = "Lỗi kết nối mạng. Vui lòng thử lại sau!";
+                    body.appendChild(errorMsg);
+                }
             }
         }
     </script>
-    <script src="{% static 'quanlyquy/js/giao_dich.js' %}"></script>
-    <script src="{% static 'quanlyquy/js/dashboard.js' %}"></script>
-</body> </html>
+</body> 
+</html>

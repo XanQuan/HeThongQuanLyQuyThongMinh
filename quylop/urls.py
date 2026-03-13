@@ -17,6 +17,7 @@ urlpatterns = [
     # --- 1. HỆ THỐNG QUẢN TRỊ ---
     path('admin/', admin.site.urls),
     
+    
     # TRẠM ĐIỀU HƯỚNG: Tự động phân loại người dùng sau login
     path('dieu-huong/', views.login_redirect_view, name='login_redirect'),
 

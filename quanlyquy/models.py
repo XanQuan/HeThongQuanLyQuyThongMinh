@@ -166,7 +166,7 @@ class GiaoDich(BaseModel):
     loai_quy = models.ForeignKey(LoaiQuy, on_delete=models.CASCADE, verbose_name="Quỹ")
     
     # [QUAN TRỌNG]: Thêm cột dot_thu để tránh lỗi Crash khi xem biểu đồ Thống Kê
-    dot_thu = models.ForeignKey(DotThu, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Đợt thu")
+    dot_thu = models.ForeignKey('DotThu', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Đợt thu")
     danh_muc = models.ForeignKey(DanhMucThuChi, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Danh mục")
     thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Thành viên")
     ly_do = models.CharField(max_length=255, verbose_name="Nội dung/Ghi chú")

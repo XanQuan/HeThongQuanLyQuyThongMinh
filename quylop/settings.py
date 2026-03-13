@@ -14,7 +14,15 @@ SECRET_KEY = 'django-insecure-p_==j%3i#j_ref8m77mw=v2dj7rdvycx(z5pd(b#kd-(yfwtm6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['fundflow.com', '127.0.0.1', 'localhost', '*'] 
+# --- CẤU HÌNH TÊN MIỀN & NGROK BẢO MẬT ---
+ALLOWED_HOSTS = ['fundsmart.com', '127.0.0.1', 'localhost', '*', '.ngrok-free.app', '.ngrok-free.dev'] 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.ngrok-free.app',
+    'https://*.ngrok-free.dev',
+]
 
 # ==========================================
 # 1. KHAI BÁO APP (INSTALLED_APPS)
@@ -23,9 +31,8 @@ INSTALLED_APPS = [
     "unfold",
     "unfold.contrib.filters",
     "unfold.contrib.forms",
-    "unfold.contrib.import_export",  # Thêm app import_export của Unfold để hỗ trợ xuất nhập Excel
+    "unfold.contrib.import_export",  
     
-    # Thêm công cụ Xuất/Nhập Excel siêu tốc cho Admin
     "import_export", 
 
     'django.contrib.admin',
@@ -43,7 +50,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     'allauth.socialaccount.providers.facebook',
 
-    'captcha',  # App Captcha
+    'captcha',  
     'quanlyquy', 
 ]
 
@@ -74,7 +81,6 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     
-    # Middleware bắt buộc của Allauth
     'allauth.account.middleware.AccountMiddleware',
 ]
 
@@ -103,7 +109,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'quylop.wsgi.application'
 
 # ==========================================
-# 3. DATABASE & CUSTOM USER
+# 3. DATABASE & CUSTOM USER (KÈM CẤU HÌNH ALLAUTH)
 # ==========================================
 DATABASES = {
     'default': {
@@ -121,8 +127,21 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',},
 ]
 
+# --- CẤU HÌNH ĐĂNG NHẬP MẠNG XÃ HỘI (Bypass Lỗi Trắng Màn Hình) ---
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
+ACCOUNT_EMAIL_VERIFICATION = "none" # Tắt bắt buộc xác thực email
+ACCOUNT_EMAIL_REQUIRED = False      # Không bắt buộc phải có email
+
+SOCIALACCOUNT_PROVIDERS = {
+    'facebook': {
+        'METHOD': 'oauth2',
+        'SCOPE': ['email', 'public_profile'],
+        'FIELDS': ['id', 'email', 'name', 'first_name', 'last_name', 'picture'],
+        'VERIFIED_EMAIL': False,
+        'VERSION': 'v19.0',
+    }
+}
 
 # ==========================================
 # 4. NGÔN NGỮ, FORMAT & ĐIỀU HƯỚNG
@@ -168,7 +187,7 @@ UNFOLD = {
     },
     "SIDEBAR": {
         "show_search": True,
-        "show_all_applications": False, # Ẩn các app mặc định lộn xộn
+        "show_all_applications": False, 
         "navigation": [
             {
                 "title": "1. QUẢN LÝ TÀI CHÍNH",
@@ -209,6 +228,15 @@ UNFOLD = {
                 ],
             },
             {
+                "title": "5. CẤU HÌNH MẠNG XÃ HỘI",
+                "icon": "settings_applications",
+                "items": [
+                    {"title": "Tên miền (Sites)", "link": "/admin/sites/site/", "icon": "language"},
+                    {"title": "App Đăng nhập (Social Apps)", "link": "/admin/socialaccount/socialapp/", "icon": "vpn_key"},
+                    {"title": "Tài khoản liên kết", "link": "/admin/socialaccount/socialaccount/", "icon": "link"},
+                ],
+            },
+            {
                 "title": "QUAY LẠI TRANG CHỦ",
                 "icon": "public",
                 "items": [
@@ -217,5 +245,6 @@ UNFOLD = {
             }
         ],
     },
-    
 }
+# Ép Allauth luôn luôn sử dụng HTTPS khi tạo link giao tiếp với Facebook/Google
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https"

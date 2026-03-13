@@ -61,6 +61,7 @@
             </span>
         </div>
     </div>
+    
 
     <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 15px 0 10px 10px;">Core Finance</div>
     
@@ -168,22 +169,23 @@
         </div>
     </div>
 
-    {{ chart1_labels|safe|json_script:"c1-labels" }}
-    {{ chart1_thu|safe|json_script:"c1-thu" }}
-    {{ chart1_chi|safe|json_script:"c1-chi" }}
+    {{ chart1_labels|json_script:"c1-labels" }}
+    {{ chart1_thu|json_script:"c1-thu" }}
+    {{ chart1_chi|json_script:"c1-chi" }}
 
-    {{ chart2_labels|safe|json_script:"c2-labels" }}
-    {{ chart2_data|safe|json_script:"c2-data" }}
+    {{ chart2_labels|json_script:"c2-labels" }}
+    {{ chart2_data|json_script:"c2-data" }}
 
-    {{ chart3_labels|safe|json_script:"c3-labels" }}
-    {{ chart3_data|safe|json_script:"c3-data" }}
+    {{ chart3_labels|json_script:"c3-labels" }}
+    {{ chart3_data|json_script:"c3-data" }}
 
-    {{ chart4_labels|safe|json_script:"c4-labels" }}
-    {{ chart4_da_thu|safe|json_script:"c4-dathu" }}
-    {{ chart4_no|safe|json_script:"c4-no" }}
+    {{ chart4_labels|json_script:"c4-labels" }}
+    {{ chart4_dathu|json_script:"c4-dathu" }}
+    {{ chart4_no|json_script:"c4-no" }}
 
-    {{ chart5_labels|safe|json_script:"c5-labels" }}
-    {{ chart5_data|safe|json_script:"c5-data" }}
+    {{ chart5_labels|json_script:"c5-labels" }}
+    {{ chart5_data|json_script:"c5-data" }}
+    
     <div class="modal-overlay" id="userProfileModal">
         <div class="modal-content" style="width: 380px; text-align: center;">
             <div class="modal-header" style="justify-content: flex-end; margin-bottom: 0;">
@@ -210,6 +212,8 @@
             </div>
         </div>
     </div>
+
+    
 
     <div id="chatbot-fab" onclick="toggleChatbot()" style="position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary)); color: white; display: flex; justify-content: center; align-items: center; font-size: 28px; cursor: pointer; box-shadow: 0 10px 25px var(--theme-glow); z-index: 9999; transition: 0.3s;" class="hover-scale pulse-dot">
         <i class="fa-solid fa-robot"></i>
@@ -259,10 +263,11 @@
     {% endif %}
 
     <script>
+        // Chỉ giữ lại 2 hàm Modal thôi, data đã được json_script và thong_ke.js lo hết rồi
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     </script>
 
     <script src="{% static 'quanlyquy/js/thong_ke.js' %}"></script>
-</body class="theme-analytics">
+</body>
 </html>
