@@ -1,7 +1,6 @@
 from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
-from datetime import date
 from django.contrib.auth.models import AbstractUser
 
 # ==========================================
@@ -36,23 +35,50 @@ class User(AbstractUser):
     full_name = models.CharField(max_length=255, verbose_name="Họ và tên")
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='MEMBER')
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    phone = models.CharField(max_length=15, null=True, blank=True, verbose_name="Số điện thoại")
     mssv = models.CharField(max_length=20, null=True, blank=True, verbose_name="Mã sinh viên")
     credit_score = models.IntegerField(default=100, verbose_name="Điểm tín nhiệm")
+    secure_pin = models.CharField(max_length=128, null=True, blank=True, verbose_name="Mã PIN bảo mật")
+
+    class Meta:
+        verbose_name = "Tài Khoản"
+        verbose_name_plural = "Tài Khoản Hệ Thống"
 
     def __str__(self): return self.full_name or self.username
+
+class LopHoc(BaseModel):
+    ten_lop = models.CharField(max_length=50, verbose_name="Tên lớp")
+    nien_khoa = models.CharField(max_length=50, verbose_name="Niên khóa")
+    
+    class Meta:
+        verbose_name = "Lớp Học"
+        verbose_name_plural = "Lớp Học"
+        
+    def __str__(self): return self.ten_lop
 
 class ThanhVien(BaseModel):
     ho_ten = models.CharField(max_length=100, verbose_name="Họ tên")
     mssv = models.CharField(max_length=20, unique=True, verbose_name="MSSV")
+    gender = models.CharField(max_length=10, choices=[('NAM', 'Nam'), ('NU', 'Nữ')], null=True, verbose_name="Giới tính")
+    phone = models.CharField(max_length=15, null=True, blank=True, verbose_name="Số điện thoại")
+    lop_hoc = models.ForeignKey(LopHoc, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Lớp học")
     email = models.EmailField(blank=True, null=True, verbose_name="Email")
     is_no_xau = models.BooleanField(default=False, verbose_name="Nợ xấu/Bảo lưu")
     user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Thành Viên"
+        verbose_name_plural = "Hồ Sơ Sinh Viên"
 
     def __str__(self): return f"{self.mssv} - {self.ho_ten}"
 
 class LoaiQuy(BaseModel):
     ten_quy = models.CharField(max_length=100, verbose_name="Tên quỹ")
     is_khoa_so = models.BooleanField(default=False, verbose_name="Khóa sổ kế toán")
+
+    class Meta:
+        verbose_name = "Quỹ Lớp"
+        verbose_name_plural = "Quản Lý Quỹ Lớp"
 
     @property
     def so_du_hien_tai(self):
@@ -67,6 +93,10 @@ class DotThu(BaseModel):
     loai_quy = models.ForeignKey(LoaiQuy, on_delete=models.CASCADE, verbose_name="Vào quỹ")
     so_tien_moi_nguoi = models.DecimalField(max_digits=12, decimal_places=0, verbose_name="Định mức nộp")
     han_chot = models.DateField(verbose_name="Hạn chót")
+
+    class Meta:
+        verbose_name = "Đợt Thu"
+        verbose_name_plural = "Đợt Thu Tiền"
 
     def __str__(self): return self.ten_dot
 
@@ -84,16 +114,35 @@ class TaiSan(BaseModel):
     ngay_mua = models.DateField(default=timezone.now, verbose_name="Ngày mua")
     ti_le_khau_hao = models.FloatField(default=10, verbose_name="% Khấu hao/Năm")
 
+    class Meta:
+        verbose_name = "Tài Sản"
+        verbose_name_plural = "Tài Sản Của Lớp"
+
+    @property
+    def gia_tri_hien_tai(self):
+        tuoi_doi = (timezone.now().date() - self.ngay_mua).days / 365
+        khau_hao = float(self.gia_mua) * (self.ti_le_khau_hao / 100) * tuoi_doi
+        gia_tri = float(self.gia_mua) - khau_hao
+        return max(gia_tri, 0)
+
 class MucTieuQuy(BaseModel):
     ten_muc_tieu = models.CharField(max_length=255, verbose_name="Tên mục tiêu")
     so_tien_muc_tieu = models.BigIntegerField(verbose_name="Số tiền mục tiêu (VNĐ)")
     so_tien_hien_tai = models.BigIntegerField(default=0, verbose_name="Đã gom được (VNĐ)")
     hoan_thanh = models.BooleanField(default=False, verbose_name="Đã hoàn thành?")
+    
+    class Meta:
+        verbose_name = "Mục Tiêu"
+        verbose_name_plural = "Mục Tiêu Tích Lũy"
 
 class SuKienNhacViec(BaseModel):
     ten_su_kien = models.CharField(max_length=255, verbose_name="Tên sự kiện")
     mo_ta = models.CharField(max_length=255, blank=True, null=True, verbose_name="Mô tả ngắn")
     ngay_dien_ra = models.DateField(default=timezone.now, verbose_name="Ngày diễn ra")
+    
+    class Meta:
+        verbose_name = "Sự Kiện"
+        verbose_name_plural = "Sự Kiện & Lịch Trình"
 
 # ==========================================
 # PHÂN HỆ 3: LÕI TÀI CHÍNH & GIAO DỊCH
@@ -101,141 +150,85 @@ class SuKienNhacViec(BaseModel):
 class DanhMucThuChi(BaseModel):
     ten_danh_muc = models.CharField(max_length=100, verbose_name="Tên danh mục")
     loai = models.CharField(max_length=3, choices=[('THU', 'Thu'), ('CHI', 'Chi')], verbose_name="Loại")
-    def __str__(self): return self.ten_danh_muc
+    mo_ta = models.TextField(null=True, blank=True, verbose_name="Mô tả danh mục")
+
+    class Meta:
+        verbose_name = "Danh Mục"
+        verbose_name_plural = "Danh Mục Thu/Chi"
+
+    def __str__(self): return f"[{self.get_loai_display()}] {self.ten_danh_muc}"
 
 class GiaoDich(BaseModel):
     LOAI = [('THU', 'Thu quỹ'), ('CHI', 'Chi quỹ'), ('TU', 'Tạm ứng'), ('HU', 'Hoàn ứng'), ('LAI', 'Lãi NH'), ('NB', 'Điều chuyển nội bộ')]
+    
     loai = models.CharField(max_length=3, choices=LOAI, verbose_name="Loại giao dịch")
     so_tien = models.DecimalField(max_digits=12, decimal_places=0, verbose_name="Số tiền")
     loai_quy = models.ForeignKey(LoaiQuy, on_delete=models.CASCADE, verbose_name="Quỹ")
+    
+    # [QUAN TRỌNG]: Thêm cột dot_thu để tránh lỗi Crash khi xem biểu đồ Thống Kê
     dot_thu = models.ForeignKey(DotThu, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Đợt thu")
+    danh_muc = models.ForeignKey(DanhMucThuChi, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Danh mục")
     thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Thành viên")
-    ly_do = models.CharField(max_length=255, verbose_name="Nội dung")
-    anh_hoa_don = models.ImageField(upload_to='hoadon/', blank=True, null=True, verbose_name="Hóa đơn")
-    ngay_tao = models.DateTimeField(default=timezone.now, verbose_name="Ngày giao dịch")
+    ly_do = models.CharField(max_length=255, verbose_name="Nội dung/Ghi chú")
+    anh_hoa_don = models.ImageField(upload_to='hoadon/', blank=True, null=True, verbose_name="Minh chứng (Hóa đơn)")
     
     is_an_danh = models.BooleanField(default=False, verbose_name="Giao dịch ẩn danh")
+    ngay_tao = models.DateTimeField(default=timezone.now, verbose_name="Ngày tạo giao dịch")
+
+    class Meta:
+        verbose_name = "Giao Dịch"
+        verbose_name_plural = "Sổ Giao Dịch"
 
     def clean(self):
-        if self.loai_quy.is_khoa_so:
-            raise ValidationError(f"Quỹ {self.loai_quy.ten_quy} đã khóa sổ.")
+        if self.loai_quy and self.loai_quy.is_khoa_so:
+            raise ValidationError(f"Quỹ '{self.loai_quy.ten_quy}' đã bị khóa sổ. Không thể thêm giao dịch.")
 
-class HoaDonChungTu(BaseModel):
-    giao_dich = models.OneToOneField(GiaoDich, on_delete=models.CASCADE, verbose_name="Giao dịch")
-    link_anh = models.ImageField(upload_to='chung_tu/', verbose_name="Ảnh chứng từ")
-    ai_doc_so_tien = models.DecimalField(max_digits=12, decimal_places=0, null=True, blank=True)
-    ai_doc_noi_dung = models.CharField(max_length=255, null=True, blank=True)
+    def __str__(self): return f"{self.ngay_tao.strftime('%d/%m/%Y')} - {self.ly_do} ({self.so_tien}đ)"
 
 class LichSuWebhook(BaseModel):
     ma_giao_dich_ngan_hang = models.CharField(max_length=100, unique=True)
     so_tien = models.DecimalField(max_digits=12, decimal_places=0)
     raw_payload = models.JSONField(verbose_name="Dữ liệu JSON gốc từ NH")
     trang_thai_xu_ly = models.BooleanField(default=False, verbose_name="Đã gạch nợ tự động chưa?")
-
-class KhoanNo(BaseModel):
-    thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE, verbose_name="Người nợ")
-    so_tien = models.DecimalField(max_digits=12, decimal_places=0, verbose_name="Số tiền nợ")
-    loai_no = models.CharField(max_length=50, verbose_name="Loại nợ")
-    han_chot = models.DateField(null=True, blank=True, verbose_name="Hạn chót")
-    da_hoan_thanh = models.BooleanField(default=False, verbose_name="Đã trả xong")
+    
+    class Meta:
+        verbose_name = "Webhook"
+        verbose_name_plural = "Lịch Sử Webhook Auto"
 
 # ==========================================
-# PHÂN HỆ 4: QUY TRÌNH, KHIẾU NẠI & BẢO MẬT
+# PHÂN HỆ GAMIFICATION & QUY TRÌNH (Rút gọn)
 # ==========================================
 class PhieuDeXuatChi(BaseModel):
     nguoi_de_xuat = models.ForeignKey(ThanhVien, on_delete=models.CASCADE, verbose_name="Người xin chi")
     so_tien = models.DecimalField(max_digits=12, decimal_places=0, verbose_name="Số tiền cần xin")
     muc_dich = models.TextField(verbose_name="Mục đích chi")
     trang_thai = models.CharField(max_length=20, choices=[('CHO_DUYET', 'Chờ duyệt'), ('DA_DUYET', 'Đã duyệt'), ('TU_CHOI', 'Từ chối')], default='CHO_DUYET')
+    class Meta: verbose_name = "Đề Xuất"; verbose_name_plural = "Phiếu Đề Xuất Chi"
 
 class KhieuNai(BaseModel):
     thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE, verbose_name="Người khiếu nại")
     tieu_de = models.CharField(max_length=255, verbose_name="Vấn đề")
     noi_dung = models.TextField(verbose_name="Chi tiết")
     trang_thai = models.CharField(max_length=20, choices=[('MO', 'Đang mở'), ('DANG_XU_LY', 'Đang xử lý'), ('DONG', 'Đã giải quyết')], default='MO')
+    class Meta: verbose_name = "Khiếu Nại"; verbose_name_plural = "Quản Lý Khiếu Nại"
 
-class BugBounty(BaseModel):
-    nguoi_bao_cao = models.ForeignKey(User, on_delete=models.CASCADE)
-    mo_ta_loi = models.TextField(verbose_name="Mô tả lỗi")
-    trang_thai = models.CharField(max_length=20, choices=[('PENDING', 'Chờ duyệt'), ('FIXED', 'Đã sửa - Đã cấp Xu'), ('REJECTED', 'Báo cáo sai')], default='PENDING')
+class QuaTang(BaseModel):
+    ten_qua = models.CharField(max_length=255, verbose_name="Tên món quà")
+    gia_xu = models.IntegerField(default=100, verbose_name="Giá đổi (Xu)")
+    so_luong_kho = models.IntegerField(default=10, verbose_name="Số lượng còn")
+    class Meta: verbose_name = "Quà Tặng"; verbose_name_plural = "Cửa Hàng Quà Tặng"
 
-class ThoaThuanBaoMat(BaseModel):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    dong_y_dieu_khoan = models.BooleanField(default=False, verbose_name="Đã đồng ý PDPA")
-    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="IP lúc xác nhận")
-
-# ==========================================
-# PHÂN HỆ 5: TRÒ CHƠI HÓA (GAMIFICATION) & STORE
-# ==========================================
-class HuyHieu(BaseModel):
-    ten_huy_hieu = models.CharField(max_length=100, verbose_name="Tên Huy hiệu")
-    link_icon = models.CharField(max_length=255, blank=True, null=True, verbose_name="Icon/Emoji")
-    mo_ta = models.TextField(blank=True, null=True, verbose_name="Mô tả")
-    diem_yeu_cau = models.IntegerField(default=0, verbose_name="Điểm yêu cầu")
-    def __str__(self): return self.ten_huy_hieu
-
-class HuyHieuThanhVien(BaseModel):
-    thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE)
-    huy_hieu = models.ForeignKey(HuyHieu, on_delete=models.CASCADE)
-    ngay_dat_duoc = models.DateTimeField(default=timezone.now)
+class NhiemVu(BaseModel):
+    ten_nhiem_vu = models.CharField(max_length=255, verbose_name="Tên nhiệm vụ")
+    xu_thuong = models.IntegerField(default=10, verbose_name="Xu thưởng")
+    is_kich_hoat = models.BooleanField(default=True, verbose_name="Đang kích hoạt")
+    class Meta: verbose_name = "Nhiệm Vụ"; verbose_name_plural = "Nhiệm Vụ Tích Xu"
 
 class BieuQuyet(BaseModel):
     cau_hoi = models.CharField(max_length=255, verbose_name="Câu hỏi biểu quyết")
     han_chot = models.DateTimeField(verbose_name="Hạn chót vote")
     dang_mo = models.BooleanField(default=True, verbose_name="Đang diễn ra")
-    def __str__(self): return self.cau_hoi
-
-class LuaChonBieuQuyet(BaseModel):
-    bieu_quyet = models.ForeignKey(BieuQuyet, on_delete=models.CASCADE, related_name='cac_lua_chon')
-    noi_dung_lua_chon = models.CharField(max_length=255, verbose_name="Lựa chọn")
-
-class LuotBinhChon(BaseModel):
-    bieu_quyet = models.ForeignKey(BieuQuyet, on_delete=models.CASCADE)
-    lua_chon = models.ForeignKey(LuaChonBieuQuyet, on_delete=models.CASCADE)
-    thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE)
-
-class NhiemVu(BaseModel):
-    ten_nhiem_vu = models.CharField(max_length=255, verbose_name="Tên nhiệm vụ", default='Nhiệm vụ chưa đặt tên')
-    mo_ta = models.TextField(verbose_name="Mô tả cách thực hiện", null=True, blank=True)
-    xu_thuong = models.IntegerField(default=10, verbose_name="Xu thưởng")
-    is_kich_hoat = models.BooleanField(default=True, verbose_name="Đang kích hoạt")
-    def __str__(self): return self.ten_nhiem_vu
-
-class QuaTang(BaseModel):
-    ten_qua = models.CharField(max_length=255, verbose_name="Tên món quà")
-    mo_ta = models.TextField(blank=True, null=True, verbose_name="Mô tả đặc quyền")
-    gia_xu = models.IntegerField(default=100, verbose_name="Giá đổi (Xu)")
-    so_luong_kho = models.IntegerField(default=10, verbose_name="Số lượng còn")
-    icon = models.CharField(max_length=50, default="fa-gift", verbose_name="Icon FontAwesome")
-    mau_sac = models.CharField(max_length=20, default="#F6BCBA", verbose_name="Mã màu UI (Hex)")
-    def __str__(self): return self.ten_qua
-
-class LichSuDoiQua(BaseModel):
-    thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE)
-    qua_tang = models.ForeignKey(QuaTang, on_delete=models.CASCADE)
-    trang_thai = models.CharField(max_length=20, choices=[('CHO_NHAN', 'Chờ nhận'), ('DA_GIAO', 'Đã giao')], default='CHO_NHAN')
-
-# ==========================================
-# PHÂN HỆ 6: GIÁM SÁT HỆ THỐNG & CHAOS LAB
-# ==========================================
-class NhatKyHeThong(models.Model):
-    nguoi_dung = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    hanh_dong = models.CharField(max_length=50, verbose_name="Hành động")
-    ten_bang = models.CharField(max_length=100, verbose_name="Bảng bị tác động")
-    du_lieu_cu = models.JSONField(null=True, blank=True, verbose_name="Dữ liệu cũ")
-    du_lieu_moi = models.JSONField(null=True, blank=True, verbose_name="Dữ liệu mới")
-    thoi_gian = models.DateTimeField(auto_now_add=True)
-
-class ThongBao(BaseModel):
-    thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE)
-    tieu_de = models.CharField(max_length=255)
-    noi_dung = models.TextField()
-    da_doc = models.BooleanField(default=False)
-
-class CaiDatHeThong(BaseModel):
-    ma_cai_dat = models.CharField(max_length=100, unique=True, verbose_name="Mã (VD: MUC_PHAT_TRE)")
-    gia_tri = models.CharField(max_length=255, verbose_name="Giá trị")
-    mo_ta = models.CharField(max_length=255, null=True, blank=True)
+    class Meta: verbose_name = "Khảo Sát"; verbose_name_plural = "Bầu Cử / Khảo Sát"
 
 class QATestingLog(models.Model):
     nguoi_test = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
@@ -243,3 +236,24 @@ class QATestingLog(models.Model):
     du_lieu_phat_sinh = models.JSONField(verbose_name="Dữ liệu Data-Seed")
     trang_thai = models.CharField(max_length=50, default="SUCCESS")
     thoi_gian_test = models.DateTimeField(auto_now_add=True)
+    class Meta: verbose_name = "Log QA"; verbose_name_plural = "Lịch Sử Test QA"
+class HuyHieu(BaseModel):
+    ten_huy_hieu = models.CharField(max_length=100, verbose_name="Tên Huy hiệu")
+    link_icon = models.CharField(max_length=255, blank=True, null=True, verbose_name="Icon/Emoji")
+    mo_ta = models.TextField(blank=True, null=True, verbose_name="Mô tả")
+    diem_yeu_cau = models.IntegerField(default=0, verbose_name="Điểm yêu cầu")
+    
+    class Meta: 
+        verbose_name = "Huy Hiệu"
+        verbose_name_plural = "Danh Sách Huy Hiệu"
+        
+    def __str__(self): return self.ten_huy_hieu
+
+class HuyHieuThanhVien(BaseModel):
+    thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.CASCADE)
+    huy_hieu = models.ForeignKey(HuyHieu, on_delete=models.CASCADE)
+    ngay_dat_duoc = models.DateTimeField(default=timezone.now)
+    
+    class Meta: 
+        verbose_name = "Cấp Phát Huy Hiệu"
+        verbose_name_plural = "Lịch Sử Cấp Huy Hiệu"

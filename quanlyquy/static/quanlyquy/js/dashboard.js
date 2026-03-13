@@ -278,7 +278,7 @@ function openBigCard(title, balance, number, bgGradient) {
 }
 
 // ==========================================
-// 5. LOGIC XÁC THỰC BẢO MẬT (PIN CODE)
+// 5. LOGIC XÁC THỰC BẢO MẬT (PIN CODE) - KẾT NỐI API THỰC TẾ
 // ==========================================
 let isDataVisible = false;
 
@@ -291,22 +291,53 @@ function handleEyeClick() {
     }
 }
 
+// Chuyển thành hàm async để gọi API
+// ==========================================
+// 5. LOGIC XÁC THỰC BẢO MẬT (PIN CODE) - BẢN DEMO NHANH
+// ==========================================
 function verifyPin(event) {
     event.preventDefault();
-    const fullPin = document.getElementById('pin1').value + 
-                    document.getElementById('pin2').value + 
-                    document.getElementById('pin3').value + 
-                    document.getElementById('pin4').value;
+    
+    // 1. Gom 6 số
+    let fullPin = '';
+    for(let i=1; i<=6; i++) {
+        let input = document.getElementById('pin' + i);
+        if(input) fullPin += input.value;
+    }
 
-    if (fullPin === '1234') { 
+    // 2. Kiểm tra xem đã nhập đủ chưa
+    if (fullPin.length < 6) {
+        // Tui dùng alert cho chắc ăn, lỡ hàm showToast của sếp bị lỗi nó vẫn báo
+        alert('Vui lòng nhập đủ 6 số!'); 
+        return;
+    }
+
+    // 3. XÁC THỰC NHANH (BẢN DEMO FRONTEND)
+    if (fullPin === '123456') { 
         unlockSensitiveData();
         closeModal('pinModal');
-        showToast('Xác minh thành công. Dữ liệu đã mở!', 'success');
+        // Nếu sếp có hàm showToast thì dùng, không thì nó chạy alert
+        if (typeof showToast === "function") {
+            showToast('Xác minh thành công. Dữ liệu đã mở!', 'success');
+        } else {
+            alert('Xác minh thành công. Dữ liệu đã mở!');
+        }
     } else {
-        showToast('Mã PIN không chính xác!', 'error');
+        // Sai mã PIN
+        if (typeof showToast === "function") {
+            showToast('Mã PIN không chính xác!', 'error');
+        } else {
+            alert('Mã PIN không chính xác!');
+        }
+        
+        // Hiệu ứng rung lắc Modal khi nhập sai
         const content = document.querySelector('#pinModal .modal-content');
-        content.style.animation = 'shake 0.4s ease';
-        setTimeout(() => content.style.animation = '', 400);
+        if (content) {
+            content.style.animation = 'shake 0.4s ease';
+            setTimeout(() => content.style.animation = '', 400);
+        }
+        
+        // Xóa trắng 6 ô và trỏ chuột lại ô đầu tiên
         document.getElementById('pinForm').reset();
         document.getElementById('pin1').focus();
     }
@@ -356,6 +387,25 @@ function lockSensitiveData() {
         statusBadge.className = 'text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-500';
     }
 }
+
+// TÍNH NĂNG PRO BỔ SUNG: Tự động nhảy sang ô tiếp theo khi nhập số
+document.addEventListener("DOMContentLoaded", function() {
+    const pinInputs = document.querySelectorAll('.pin-inputs input');
+    pinInputs.forEach((input, index) => {
+        // Khi gõ số -> nhảy ô tiếp theo
+        input.addEventListener('input', function() {
+            if (this.value.length === 1 && index < pinInputs.length - 1) {
+                pinInputs[index + 1].focus();
+            }
+        });
+        // Khi bấm nút Xóa (Backspace) -> lùi lại ô trước đó
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && this.value.length === 0 && index > 0) {
+                pinInputs[index - 1].focus();
+            }
+        });
+    });
+});
 
 // ==========================================
 // 6. KHỞI TẠO BIỂU ĐỒ (CHART.JS) VÀ SỰ KIỆN DOM

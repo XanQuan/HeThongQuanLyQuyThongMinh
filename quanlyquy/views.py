@@ -21,7 +21,8 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import (
     GiaoDich, ThanhVien, TaiSan, LoaiQuy, DotThu, 
     MucTieuQuy, SuKienNhacViec, User, QuaTang, 
-    NhiemVu, BieuQuyet, HuyHieuThanhVien, QATestingLog
+    NhiemVu, BieuQuyet, HuyHieuThanhVien, QATestingLog, 
+    LichSuWebhook, DanhMucThuChi
 )
 from .utils import format_money
 
@@ -30,6 +31,11 @@ from .utils import format_money
 # ==========================================
 def is_thu_quy(user):
     return user.is_active and (user.is_staff or user.is_superuser or getattr(user, 'role', '') == 'ADMIN')
+
+def get_percent_change(current, previous):
+    if not previous or previous == 0:
+        return 100 if current > 0 else 0
+    return round(((current - previous) / previous) * 100, 1)
 
 # ==========================================
 # 2. HỆ THỐNG XÁC THỰC (AUTH)
@@ -123,11 +129,6 @@ def logout_view(request):
 # ==========================================
 # 3. TRANG CHỦ & DASHBOARD
 # ==========================================
-def get_percent_change(current, previous):
-    if not previous or previous == 0:
-        return 100 if current > 0 else 0
-    return round(((current - previous) / previous) * 100, 1)
-
 @login_required
 def dashboard(request):
     now = timezone.now()
@@ -214,7 +215,7 @@ def dashboard(request):
     return render(request, 'quanlyquy/dashboard.html', context)
 
 # ==========================================
-# 4. CÁC TRANG CHỨC NĂNG
+# 4. CÁC TRANG CHỨC NĂNG CHÍNH
 # ==========================================
 @login_required
 def giao_dich_view(request):
@@ -241,6 +242,7 @@ def giao_dich_view(request):
 def thong_ke_view(request):
     is_admin = is_thu_quy(request.user)
     
+    # Chart 1: Dòng tiền 6 tháng
     stats = GiaoDich.objects.annotate(month=TruncMonth('ngay_tao')).values('month').annotate(
         thu=Sum('so_tien', filter=Q(loai__in=['THU', 'LAI', 'HU'])),
         chi=Sum('so_tien', filter=Q(loai__in=['CHI', 'TU']))
@@ -251,19 +253,26 @@ def thong_ke_view(request):
     chart1_thu = [float(s['thu'] or 0) for s in stats_list]
     chart1_chi = [float(s['chi'] or 0) for s in stats_list]
 
-    chi_tieu_db = GiaoDich.objects.filter(loai='CHI').values('ly_do').annotate(tong_chi=Sum('so_tien')).order_by('-tong_chi')[:5]
-    chart2_labels = [item['ly_do'] for item in chi_tieu_db]
+    # Chart 2: Cơ cấu chi tiêu (Đã tối ưu: Lấy theo Danh mục thay vì Lý do)
+    chi_tieu_db = GiaoDich.objects.filter(loai='CHI').values('danh_muc__ten_danh_muc').annotate(
+        tong_chi=Sum('so_tien')
+    ).order_by('-tong_chi')[:5]
+    
+    chart2_labels = [item['danh_muc__ten_danh_muc'] or "Chi phí khác" for item in chi_tieu_db]
     chart2_data = [float(item['tong_chi']) for item in chi_tieu_db]
 
+    # Chart 3: Top đóng góp
     top_members = ThanhVien.objects.annotate(
         tong_dong_gop=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU'))
     ).order_by('-tong_dong_gop')[:5]
     chart3_labels = [m.ho_ten for m in top_members]
     chart3_data = [float(m.tong_dong_gop or 0) for m in top_members]
 
+    # Chart 4: Thống kê nợ theo đợt thu
     dot_thu_list = DotThu.objects.all().order_by('-id')[:4]
     tong_tv = ThanhVien.objects.count()
     chart4_labels = []; chart4_da_thu = []; chart4_no = []
+    
     for dt in dot_thu_list:
         chart4_labels.append(dt.ten_dot)
         da_thu = float(GiaoDich.objects.filter(dot_thu=dt, loai='THU').aggregate(Sum('so_tien'))['so_tien__sum'] or 0)
@@ -271,6 +280,7 @@ def thong_ke_view(request):
         chart4_da_thu.append(da_thu)
         chart4_no.append(max(0, tong_can_thu - da_thu))
 
+    # Chart 5: Tồn quỹ
     quys = LoaiQuy.objects.all()
     chart5_labels = []; chart5_data = []
     for q in quys:
@@ -384,22 +394,22 @@ def export_misa_view(request):
 def settings_view(request):
     is_admin = getattr(request.user, 'role', '') == 'ADMIN' or request.user.is_superuser
     if not is_admin: return redirect('/') 
-    return render(request, 'quanlyquy/settings.html', {'is_admin': is_admin, 'user_role_name': "QUẢN TRỊ VIÊN"})
+    return render(request, 'quanlyquy/settings.html', {'is_admin': is_admin, 'user_role_name': "Thủ quỹ hệ thống"})
 
 @login_required
 def qa_testing_view(request):
     is_admin = getattr(request.user, 'role', '') == 'ADMIN' or request.user.is_superuser
     if not is_admin: return redirect('/')
-    return render(request, 'quanlyquy/qa_testing.html', {'is_admin': is_admin, 'user_role_name': "QUẢN TRỊ VIÊN"})
+    return render(request, 'quanlyquy/qa_testing.html', {'is_admin': is_admin, 'user_role_name': "Thủ quỹ hệ thống"})
 
 @login_required
 def store_view(request):
-    is_admin = (request.user.role == 'ADMIN' or request.user.is_superuser)
+    is_admin = getattr(request.user, 'role', '') == 'ADMIN' or request.user.is_superuser
     items = QuaTang.objects.all()
     context = {
         'items': items,
         'is_admin': is_admin,
-        'user_role_name': "QUẢN TRỊ VIÊN" if is_admin else "THÀNH VIÊN"
+        'user_role_name': "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp" 
     }
     return render(request, 'quanlyquy/store.html', context)
 
