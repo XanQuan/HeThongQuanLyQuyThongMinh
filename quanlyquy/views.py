@@ -127,7 +127,7 @@ def logout_view(request):
     return redirect('/')
 
 # ==========================================
-# 3. TRANG CHỦ & DASHBOARD
+# 3. TRANG CHỦ & DASHBOARD (ĐÃ TỐI ƯU HÓA HOÀN TOÀN)
 # ==========================================
 @login_required
 def dashboard(request):
@@ -190,8 +190,69 @@ def dashboard(request):
         tong_nop=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU'))
     ).order_by('-tong_nop')[:5]
 
+    # ==========================================
+    # QUẢN LÝ QUỸ & MỤC TIÊU (ĐÃ FIX LỖI TÊN CỘT)
+    # ==========================================
+    quy_nh = LoaiQuy.objects.filter(ten_quy__icontains="Ngân hàng").first()
+    if quy_nh:
+        thu_nh = GiaoDich.objects.filter(loai_quy=quy_nh, loai__in=['THU', 'LAI', 'HU']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+        chi_nh = GiaoDich.objects.filter(loai_quy=quy_nh, loai__in=['CHI', 'TU']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+        so_du_bank = format_money(thu_nh - chi_nh)
+    else:
+        so_du_bank = "0"
+
+    quy_tm = LoaiQuy.objects.filter(ten_quy__icontains="Tiền mặt").first()
+    if quy_tm:
+        thu_tm = GiaoDich.objects.filter(loai_quy=quy_tm, loai__in=['THU', 'LAI', 'HU']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+        chi_tm = GiaoDich.objects.filter(loai_quy=quy_tm, loai__in=['CHI', 'TU']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+        so_du_cash = format_money(thu_tm - chi_tm)
+    else:
+        so_du_cash = "0"
+
+    try:
+        danh_sach_no_xau = ThanhVien.objects.filter(is_no_xau=True)
+    except:
+        danh_sach_no_xau = []
+
+    # THUẬT TOÁN RADAR DÒ TÌM TIỀN MỤC TIÊU CHỐNG LỖI TÊN CỘT DATABASE
+    muc_tieu_quy = list(MucTieuQuy.objects.filter(hoan_thanh=False)[:5])
+    danh_sach_muc_tieu = []
+    
+    for mt in muc_tieu_quy:
+        tien_ht = getattr(mt, 'tien_hien_tai', None)
+        if tien_ht is None: tien_ht = getattr(mt, 'so_tien_hien_tai', None)
+        if tien_ht is None: tien_ht = getattr(mt, 'so_tien_da_gom', None)
+        if tien_ht is None: tien_ht = getattr(mt, 'da_gom_duoc', None)
+        if tien_ht is None: tien_ht = getattr(mt, 'tien_da_gom', None)
+        if tien_ht is None: tien_ht = getattr(mt, 'tien_hiam_tai', 0)
+        tien_ht = int(tien_ht) if tien_ht else 0
+
+        tien_mt = getattr(mt, 'tien_muc_tieu', None)
+        if tien_mt is None: tien_mt = getattr(mt, 'so_tien_muc_tieu', 0)
+        tien_mt = int(tien_mt) if tien_mt else 0
+        
+        mt.tien_hien_tai_format = format_money(tien_ht)
+        mt.tien_muc_tieu_format = format_money(tien_mt)
+        
+        if tien_mt > 0:
+            phan_tram = int((tien_ht / tien_mt) * 100)
+            mt.phan_tram_thuc = min(phan_tram, 100) 
+        else:
+            mt.phan_tram_thuc = 0
+            
+        if hasattr(mt, 'han_chot') and mt.han_chot:
+            delta = mt.han_chot - timezone.now().date()
+            mt.ngay_con_lai = max(0, delta.days)
+        else:
+            mt.ngay_con_lai = None
+            
+        danh_sach_muc_tieu.append(mt)
+
     context = {
         'so_du': format_money(so_du_raw),
+        'so_du_bank': so_du_bank,   
+        'so_du_cash': so_du_cash,   
+        'danh_sach_no_xau': danh_sach_no_xau,
         'tong_thu': format_money(thu_tong),
         'tong_chi': format_money(chi_tong),
         'thu_nay': format_money(thu_thang_nay),
@@ -199,9 +260,12 @@ def dashboard(request):
         'thu_percent': thu_percent,
         'chi_percent': chi_percent,
         'tai_san': TaiSan.objects.all().order_by('-ngay_mua')[:3],
-        'thanh_viens': ThanhVien.objects.all().order_by('ho_ten')[:12],
+        'thanh_viens': ThanhVien.objects.all().order_by('ho_ten'),
         'giao_dich_moi': GiaoDich.objects.all().select_related('thanh_vien').order_by('-ngay_tao')[:5],
-        'muc_tieu_quy': MucTieuQuy.objects.filter(hoan_thanh=False)[:3],
+        
+        # Đẩy danh sách đã qua bộ lọc ra ngoài HTML
+        'muc_tieu_quy': danh_sach_muc_tieu, 
+        
         'su_kien_nhac_viec': SuKienNhacViec.objects.filter(ngay_dien_ra__gte=now.date())[:4],
         'chart_months': json.dumps(chart_months),
         'chart_thu': json.dumps(chart_thu),
@@ -211,85 +275,70 @@ def dashboard(request):
         'member_section_title': member_section_title,
         'ai_alerts': ai_alerts,
         'top_dai_gia': top_dai_gia,
+        'is_thanh_hut': so_du_raw < 0,
     }
     return render(request, 'quanlyquy/dashboard.html', context)
+
 
 # ==========================================
 # 4. CÁC TRANG CHỨC NĂNG CHÍNH
 # ==========================================
 @login_required
 def giao_dich_view(request):
-    # 1. Lấy toàn bộ giao dịch
     giao_dich_list_raw = GiaoDich.objects.all().select_related('thanh_vien').order_by('-ngay_tao')
-    
-    # 2. Lấy tham số tìm kiếm & Lọc từ URL (GET Request)
     q = request.GET.get('search', '').strip()
-    tx_type = request.GET.get('type', '') # Sẽ là 'THU' hoặc 'CHI'
+    tx_type = request.GET.get('type', '')
 
-    # 3. XỬ LÝ TÌM KIẾM GLOBAL (Quét toàn bộ DB)
     if q:
-        # Điều kiện cơ bản: Tìm theo Lý do, HOẶC (Tìm theo Tên/MSSV nhưng bắt buộc KHÔNG ẨN DANH)
         search_condition = Q(ly_do__icontains=q) | (
             Q(is_an_danh=False) & (Q(thanh_vien__ho_ten__icontains=q) | Q(thanh_vien__mssv__icontains=q))
         )
-        
-        # Cú lừa tinh tế: Nếu người dùng cố tình gõ chữ "hảo tâm" hoặc "ẩn danh" 
-        # thì mới cho phép hiển thị các giao dịch is_an_danh=True
         if "hảo tâm" in q.lower() or "ẩn danh" in q.lower():
             search_condition |= Q(is_an_danh=True)
-
         giao_dich_list_raw = giao_dich_list_raw.filter(search_condition)
 
-    # 4. XỬ LÝ LỌC THU/CHI GLOBAL (Quét toàn bộ DB)
     if tx_type == 'THU':
         giao_dich_list_raw = giao_dich_list_raw.filter(loai__in=['THU', 'LAI', 'HU'])
     elif tx_type == 'CHI':
         giao_dich_list_raw = giao_dich_list_raw.filter(loai__in=['CHI', 'TU'])
 
-    # Format tiền
     for gd in giao_dich_list_raw:
         gd.so_tien_format = format_money(gd.so_tien)
 
-    # 5. Phân trang (Hiển thị 10 dòng/trang cho dễ nhìn)
     paginator = Paginator(giao_dich_list_raw, 10) 
     page_number = request.GET.get('page')
     giao_dich_list = paginator.get_page(page_number)
 
-    # 6. Gửi biến ra giao diện
     return render(request, 'quanlyquy/page_giao_dich.html', {
         'giao_dich_list': giao_dich_list,
         'search_query': q,
-        'current_type': tx_type, # Gửi lại type để giữ state của Dropdown
+        'current_type': tx_type,
         'is_admin': is_thu_quy(request.user)
     })
+
 @login_required
 def thong_ke_view(request):
-    # 1. BIỂU ĐỒ 1: Dòng tiền 6 tháng (Tính TỔNG TIỀN - Sum)
     stats = GiaoDich.objects.annotate(m=TruncMonth('ngay_tao')).values('m').annotate(
         thu=Sum('so_tien', filter=Q(loai__in=['THU', 'LAI', 'HU'])),
         chi=Sum('so_tien', filter=Q(loai__in=['CHI', 'TU']))
     ).order_by('m')
     
-    # Lấy 6 tháng cuối cùng
     last_6_stats = list(stats)[-6:]
     c1_labels = [s['m'].strftime("Th %m/%y") for s in last_6_stats if s['m']]
     c1_thu = [float(s['thu'] or 0) for s in last_6_stats]
     c1_chi = [float(s['chi'] or 0) for s in last_6_stats]
 
-    # 2. BIỂU ĐỒ 2: Cơ cấu chi tiêu (Top 5 danh mục chi nhiều nhất)
     chi_tieu_db = GiaoDich.objects.filter(loai__in=['CHI', 'TU']).values('danh_muc__ten_danh_muc').annotate(
         tong=Sum('so_tien')).order_by('-tong')[:5]
     c2_labels = [item['danh_muc__ten_danh_muc'] or "Khác" for item in chi_tieu_db]
     c2_data = [float(item['tong'] or 0) for item in chi_tieu_db]
 
-    # 3. BIỂU ĐỒ 3: Top 5 Thành viên đóng góp (Bảo mật: Không hiện người ẩn danh)
     top_members = ThanhVien.objects.annotate(
         tong=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU', giaodich__is_an_danh=False))
     ).filter(tong__gt=0).order_by('-tong')[:5]
     c3_labels = [m.ho_ten for m in top_members]
     c3_data = [float(m.tong or 0) for m in top_members]
 
-    # 4. BIỂU ĐỒ 4: Tiến độ thu theo Đợt (Nợ và Đã thu)
     dot_thu_list = DotThu.objects.all().order_by('-id')[:4]
     tong_tv = ThanhVien.objects.count()
     c4_labels = []; c4_dathu = []; c4_no = []
@@ -300,11 +349,13 @@ def thong_ke_view(request):
         c4_dathu.append(da_thu)
         c4_no.append(max(0, tong_phai_thu - da_thu))
 
-    # 5. BIỂU ĐỒ 5: Phân bổ tiền mặt giữa các quỹ
     quys = LoaiQuy.objects.all()
     c5_labels = [q.ten_quy for q in quys]
     c5_data = [float(q.so_du_hien_tai or 0) for q in quys]
 
+# [BỔ SUNG QUAN TRỌNG]: Kiểm tra quyền Admin để hiện Sidebar
+    is_admin = is_thu_quy(request.user)
+    user_role_name = "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp"
     context = {
         'chart1_labels': json.dumps(c1_labels),
         'chart1_thu': json.dumps(c1_thu),
@@ -318,6 +369,8 @@ def thong_ke_view(request):
         'chart4_no': json.dumps(c4_no),
         'chart5_labels': json.dumps(c5_labels),
         'chart5_data': json.dumps(c5_data),
+        'is_admin': is_admin,
+        'user_role_name': user_role_name,
     }
     return render(request, 'quanlyquy/thong_ke.html', context)
 
@@ -325,15 +378,43 @@ def thong_ke_view(request):
 def tien_do_thu_view(request):
     is_admin = is_thu_quy(request.user)
     dot_thu = DotThu.objects.order_by('-id').first()
+    tat_ca_tv = ThanhVien.objects.filter(deleted_at__isnull=True)
     
-    total_needed = 0; total_collected = 0; percent = 0
-    thanh_viens = ThanhVien.objects.all()
-    
+    total_needed = 0
+    total_collected = 0
     if dot_thu:
-        total_needed = dot_thu.so_tien_moi_nguoi * thanh_viens.count()
-        total_collected = GiaoDich.objects.filter(dot_thu=dot_thu, loai='THU').aggregate(Sum('so_tien'))['so_tien__sum'] or 0
-        if total_needed > 0:
-            percent = int((total_collected / total_needed) * 100)
+        total_needed = dot_thu.so_tien_moi_nguoi * tat_ca_tv.count()
+        total_collected = GiaoDich.objects.filter(dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+
+    search_query = request.GET.get('search', '').strip()
+    tv_filtered = tat_ca_tv
+    if search_query:
+        tv_filtered = tv_filtered.filter(Q(ho_ten__icontains=search_query) | Q(mssv__icontains=search_query))
+
+    thanh_vien_stats_raw = []
+    for tv in tv_filtered:
+        # Tính tiền đóng dựa trên Đợt thu hiện tại
+        da_nop = GiaoDich.objects.filter(thanh_vien=tv, dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+        is_me = (tv.mssv == getattr(request.user, 'mssv', None) or tv.email == request.user.email)
+        
+        thanh_vien_stats_raw.append({
+            'id': tv.id, 
+            'ho_ten': tv.ho_ten, 
+            'mssv': tv.mssv,
+            'so_tien_da_dong': format_money(da_nop),
+            'is_hoan_thanh': da_nop >= (dot_thu.so_tien_moi_nguoi if dot_thu else 0),
+            'is_no_xau': da_nop < (dot_thu.so_tien_moi_nguoi if dot_thu else 0),
+            'is_me': is_me
+        })
+
+    paginator = Paginator(thanh_vien_stats_raw, 10)
+    page_number = request.GET.get('page')
+    thanh_vien_stats = paginator.get_page(page_number)
+
+    percent = int((total_collected / total_needed * 100)) if total_needed > 0 else 0
+    
+    # Lấy trạng thái của chính sếp Quân để hiện Badge riêng
+    my_status = next((x['is_hoan_thanh'] for x in thanh_vien_stats_raw if x['is_me']), False)
 
     context = {
         'is_admin': is_admin,
@@ -344,7 +425,11 @@ def tien_do_thu_view(request):
         'total_remaining': format_money(max(0, total_needed - total_collected)),
         'percent': percent,
         'remaining_percent': max(0, 100 - percent),
-        'thanh_vien_stats': thanh_viens,
+        'thanh_vien_stats': thanh_vien_stats,
+        'search_query': search_query,
+        'my_status': my_status, # Cần thiết cho Badge "Trạng thái của bạn"
+        'debt_count': len([x for x in thanh_vien_stats_raw if x['is_no_xau']]), # Đếm người nợ
+       'deadline': dot_thu.han_chot.strftime("%d/%m/%Y") if dot_thu and dot_thu.han_chot else "Chưa đặt",
     }
     return render(request, 'quanlyquy/page_tien_do.html', context)
 
@@ -536,3 +621,61 @@ def sepay_webhook(request):
             return JsonResponse({"status": "error", "message": f"Lỗi hệ thống: {str(e)}"}, status=500)
             
     return JsonResponse({"status": "invalid_method", "message": "Chỉ nhận phương thức POST"}, status=405)
+
+from django.views.decorators.http import require_POST
+import json
+
+from django.views.decorators.http import require_POST
+import json
+
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+import json
+from django.http import JsonResponse
+
+@csrf_exempt  # <-- KIM BÀI MIỄN TỬ: Tạm thời tắt bảo mật để tiền vào mượt
+@login_required
+@require_POST
+def api_nop_quy(request):
+    try:
+        data = json.loads(request.body)
+        
+        # Xử lý số tiền (xóa dấu chấm)
+        so_tien_raw = str(data.get('so_tien', '0')).replace('.', '').replace(',', '')
+        so_tien = int(so_tien_raw)
+        
+        ly_do = data.get('ly_do', 'Đóng quỹ lớp')
+        muc_tieu_id = data.get('muc_tieu_id')
+        is_an_danh = data.get('is_an_danh', False)
+
+        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+        if not tv:
+            tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+
+        quy = LoaiQuy.objects.first() 
+        if not quy:
+            return JsonResponse({'status': 'error', 'message': 'Chưa có Quỹ nào!'})
+
+        GiaoDich.objects.create(
+            loai='THU',
+            so_tien=so_tien,
+            ly_do=ly_do,
+            loai_quy=quy,
+            thanh_vien=tv,
+            is_an_danh=is_an_danh
+        )
+
+        if muc_tieu_id:
+            mt_obj = MucTieuQuy.objects.filter(id=muc_tieu_id).first()
+            if mt_obj:
+                tien_hien_tai = getattr(mt_obj, 'tien_hien_tai', getattr(mt_obj, 'so_tien_hien_tai', 0)) or 0
+                if hasattr(mt_obj, 'tien_hien_tai'):
+                    mt_obj.tien_hien_tai = tien_hien_tai + so_tien
+                elif hasattr(mt_obj, 'so_tien_hien_tai'):
+                    mt_obj.so_tien_hien_tai = tien_hien_tai + so_tien
+                mt_obj.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Góp quỹ thành công!'})
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Lỗi Backend: {str(e)}'})

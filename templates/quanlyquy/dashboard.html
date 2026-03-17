@@ -40,23 +40,23 @@
     </div>
 
     <div class="sidebar-user-panel hover-lift" onclick="openModal('userProfileModal')" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 12px; margin-bottom: 25px; display: flex; align-items: center; gap: 12px; cursor: pointer;">
-        <div class="user-avatar-wrapper" style="position: relative;">
-            {% if accounts.google %}
-                <img src="{{ accounts.google.0.get_avatar_url }}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.2);">
-            {% else %}
-                <div class="user-initials">
-                    {{ request.user.username|slice:":1"|upper }}
+                <div class="user-avatar-wrapper" style="position: relative;">
+                    {% if accounts.google %}
+                        <img src="{{ accounts.google.0.get_avatar_url }}" alt="Avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(255,255,255,0.2);">
+                    {% else %}
+                        <div style="width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary)); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; border: 1px solid rgba(255,255,255,0.2);">
+                            {{ request.user.username|slice:":1"|upper }}
+                        </div>
+                    {% endif %}
+                    <div class="status-indicator online pulse-dot" style="position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px; background: #10b981; border: 2px solid #0f172a; border-radius: 50%;"></div>
                 </div>
-            {% endif %}
-            <div class="status-indicator online pulse-dot" style="position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px; background: #10b981; border: 2px solid #0f172a; border-radius: 50%;"></div>
-        </div>
-        <div class="user-info-text" style="flex: 1; overflow: hidden;">
-            <span class="user-name" style="display: block; color: var(--text-dark); font-size: 13px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis;">{{ request.user.full_name|default:request.user.username }}</span>
-            <span class="user-role" style="color: var(--theme-primary); font-size: 11px; font-weight: 700; text-transform: uppercase;">
-                {{ user_role_name|default:"THỦ QUỸ HỆ THỐNG" }}
-            </span>
-        </div>
-    </div>
+                <div class="user-info-text" style="flex: 1; overflow: hidden;">
+                    <span class="user-name" style="display: block; color: var(--text-dark, #fff); font-size: 13px; font-weight: 800; white-space: nowrap; text-overflow: ellipsis;">{{ request.user.full_name|default:request.user.username }}</span>
+                    <span class="user-role" style="color: var(--theme-primary); font-size: 11px; font-weight: 700; text-transform: uppercase;">
+                        {{ user_role_name|default:"THỦ QUỸ HỆ THỐNG" }}
+                    </span>
+                </div>
+            </div>
 
     <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 15px 0 10px 10px;">Core Finance</div>
     
@@ -123,25 +123,35 @@
         <div class="dashboard-layout">
             
             <div class="col col-1">
-    <div class="animate-fade-in" style="animation-delay: 0.1s; margin-bottom: 25px;">
-        <h2 style="display: flex; align-items: center; gap: 12px; margin: 0;">
-            <span class="text-gradient-animated">Tổng Quan Hệ Thống</span>
-            <i class="fa-solid fa-chart-simple text-primary" style="font-size: 20px; filter: drop-shadow(0 0 5px var(--primary));"></i>
-        </h2>
-        <p class="text-sm" style="color: #64748b; margin-top: 8px; font-weight: 500;">
+                
+    <div class="animate-fade-in mb-4" style="animation-delay: 0.1s;">
+       <h2 class="d-flex align-items-center" style="justify-content: flex-start; gap: 10px; margin: 0;">
+          <span class="text-gradient-animated">Tổng Quan Hệ Thống</span>
+    
+           <svg class="audio-bars" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));">
+             <rect class="bar1" x="3" y="13" width="4" height="7" rx="2" fill="#ffffff" />
+             <rect class="bar2" x="10" y="9" width="4" height="11" rx="2" fill="#ffffff" />
+             <rect class="bar3" x="17" y="12" width="4" height="8" rx="2" fill="#ffffff" />
+           </svg>
+       </h2>
+        <p class="text-sm mt-2 font-weight-500">
             Phân tích dòng tiền của sếp <span class="text-white font-bold">{{ request.user.full_name|default:request.user.username }}</span> 👋
         </p>
     </div>
 
     {% if is_thanh_hut %}
-    <div class="animate-fade-in warning-banner shine-box" style="animation-delay: 0.15s; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 15px; padding: 12px 18px; margin-bottom: 20px; cursor: pointer;" onclick="openModal('depositModal')">
-        <div class="d-flex items-center gap-3">
-            <i class="fa-solid fa-triangle-exclamation text-danger pulse-dot"></i>
-            <span style="color: #ef4444; font-weight: 800; font-size: 13px;">CẢNH BÁO: Quỹ thâm hụt! Đề xuất nộp thêm lúa ngay.</span>
+    <div class="animate-fade-in hover-lift d-flex" style="animation-delay: 0.15s; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 15px; padding: 12px 18px; margin-bottom: 20px; cursor: pointer; align-items: center;" onclick="openModal('depositModal')">
+        
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fa-solid fa-triangle-exclamation text-chi fa-beat-fade" style="font-size: 18px; --fa-animation-duration: 2s;"></i>
+            <span class="text-chi" style="font-weight: 800; font-size: 13px;">CẢNH BÁO: Quỹ thâm hụt! Đề xuất nộp thêm lúa ngay.</span>
+            </div>
+
+        <div style="font-size: 11px; background: rgba(239, 68, 68, 0.2); padding: 4px 10px; border-radius: 8px; font-weight: 800;" class="text-chi">
+            <i class="fa-solid fa-coins me-1"></i> Nộp ngay
         </div>
     </div>
     {% endif %}
-
     <div class="kpi-wrapper" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
         <div class="kpi-card-neon animate-fade-in" style="animation-delay: 0.2s;" onclick="window.location.href='/giao-dich/'">
             <div class="d-flex justify-between items-center mb-3">
@@ -320,7 +330,7 @@
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
                     <i class="fa-solid fa-vault" style="font-size: 24px; color: #ffffff; opacity: 0.8;"></i>
                 </div>
-                <h1 class="sensitive-data" data-value="0 đ" style="margin: 0; font-size: 28px; letter-spacing: 1px;">*** đ</h1>
+                <h1 class="sensitive-data" data-value="{{ so_du_cash|default:'0' }} đ" style="margin: 0; font-size: 28px; letter-spacing: 1px;">*** đ</h1>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: flex-end; z-index: 1;">
@@ -470,8 +480,8 @@
             <h4 class="m-0" style="font-size: 14px;">Bạn bè trong lớp</h4>
             <span style="font-size: 10px; font-weight: 800; color: #64748b;">{{ thanh_viens|length }} SV</span>
         </div>
-        <div class="avatar-stack">
-            {% for tv in thanh_viens|slice:":6" %}
+        <div class="avatar-stack" style="display: flex; flex-wrap: wrap; gap: 4px;">
+            {% for tv in thanh_viens|slice:":22" %}
             <img src="https://ui-avatars.com/api/?name={{ tv.ho_ten }}&background=random&color=fff" 
                  style="width: 36px; height: 36px; border-radius: 50%;"
                  title="{{ tv.ho_ten }}" 
@@ -487,68 +497,121 @@
     </div>
 
             <div class="animate-fade-in" style="animation-delay: 0.4s; margin-top: 35px;">
-        <h4 class="mb-3" style="font-size: 14px; display: flex; align-items: center; gap: 8px;">
-            Báo Cáo Nợ Xấu <span class="pulse-dot bg-danger"></span>
-        </h4>
+    <h4 class="mb-3" style="font-size: 14px; display: flex; align-items: center; gap: 8px;">
+        Báo Cáo Nợ Xấu <span class="pulse-dot {% if danh_sach_no_xau %}bg-danger{% else %}bg-success{% endif %}"></span>
+    </h4>
+    
+    {% if danh_sach_no_xau %}
+        <div class="glass-card mb-4" style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); padding: 15px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+                <span style="color: #ef4444; font-weight: bold; font-size: 12px;">ĐANG CÓ {{ danh_sach_no_xau|length }} BÁO ĐỘNG</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                {% for tv in danh_sach_no_xau|slice:":3" %}
+                <div style="display: flex; justify-content: space-between; font-size: 12px;">
+                    <span style="color: #f5f7f4;">{{ tv.ho_ten }}</span>
+                    <span style="color: #ef4444; font-weight: bold;">Chưa đóng quỹ</span>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="/tien-do/" style="display: block; text-align: center; margin-top: 10px; font-size: 11px; color: #ef4444; text-decoration: underline;">Xem tất cả danh sách nợ</a>
+        </div>
+    {% else %}
         <div class="glass-card success-glow mb-4 hover-lift" style="display: flex; align-items: center; gap: 15px; padding: 15px;">
             <div style="background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 12px;">
                 <i class="fa-solid fa-shield-check text-success" style="font-size: 20px;"></i>
             </div>
             <div>
                 <p class="m-0 font-bold text-white text-sm">TRẠNG THÁI TỐT</p>
-                <p class="m-0 text-[11px] text-slate-500">Không có thành viên nào nợ quỹ.</p>
+                <p class="m-0 text-[11px] text-slate-500">Tuyệt vời! Không có ai nợ quỹ lúc này.</p>
             </div>
         </div>
-    </div>
+    {% endif %}
+</div>
 
 <div class="animate-fade-in" style="animation-delay: 0.5s; margin-top: 30px;">
-        <div class="d-flex justify-between items-center mb-4">
-            <h4 class="m-0" style="font-size: 14px;">Mục Tiêu Quỹ <i class="fa-solid fa-bullseye text-primary"></i></h4>
-            <a href="/admin/quanlyquy/muctieuquy/" class="text-[11px] font-bold text-primary hover:underline" style="text-decoration:none;">CHI TIẾT</a>
+    <div class="d-flex justify-between items-center mb-4">
+        <h4 class="m-0" style="font-size: 14px;">Mục Tiêu Tích Lũy <i class="fa-solid fa-bullseye text-primary"></i></h4>
+        <a href="/admin/quanlyquy/muctieuquy/" class="text-[11px] font-bold text-primary hover:underline" style="text-decoration:none;">CHI TIẾT</a>
+    </div>
+
+    {% for mt in muc_tieu_quy %}
+    <div class="cf-card mb-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+            <div>
+                <h3 style="margin: 0; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-hand-holding-heart text-rose-500"></i> {{ mt.ten_muc_tieu }}
+                </h3>
+            </div>
+            
+            {% if mt.ngay_con_lai != None %}
+            <div style="background: rgba(29, 209, 161, 0.1); color: #1dd1a1; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; border: 1px solid rgba(29, 209, 161, 0.3);">
+                Còn {{ mt.ngay_con_lai }} ngày
+            </div>
+            {% endif %}
         </div>
 
-        {% for mt in muc_tieu_quy %}
-        <div class="goal-card mb-4">
-            <div class="d-flex justify-between mb-2">
-                <span class="text-xs font-bold text-slate-300">{{ mt.ten_muc_tieu }}</span>
-                <span class="text-xs font-black text-primary">{{ mt.phan_tram }}%</span>
-            </div>
-            <div class="progress-bg" style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden;">
-                <div class="progress-bar-fill" style="width: {{ mt.phan_tram }}%; height: 100%; background: linear-gradient(90deg, #6366f1, #a855f7); box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);"></div>
-            </div>
-            <div class="d-flex justify-between mt-2">
-                <span style="font-size: 10px; color: #94a3b8; font-family: monospace;">{{ mt.tien_hiam_tai }}đ</span>
-                <span style="font-size: 10px; color: #475569; font-family: monospace;">/{{ mt.tien_muc_tieu }}đ</span>
-            </div>
+        <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 15px; margin-bottom: 5px;">
+            <span style="color: #fff; font-weight: bold;">Đã gom: {{ mt.tien_hien_tai_format|default:"0" }}đ</span>
+            <span style="color: #8b8b99;">/ {{ mt.tien_muc_tieu_format|default:"0" }}đ</span>
         </div>
-        {% empty %}
-        <p class="text-xs text-slate-500 italic text-center">Chưa có mục tiêu nào.</p>
-        {% endfor %}
+
+        <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 10px;">
+            <div style="width: {{ mt.phan_tram_thuc|default:'0' }}%; height: 100%; background: linear-gradient(90deg, #10b981, #34d399); box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); transition: width 1s ease-in-out;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #10b981; font-weight: 900; font-size: 14px; text-shadow: 0 0 10px rgba(16, 185, 129, 0.2);">{{ mt.phan_tram_thuc|default:'0' }}%</span>
+            
+            <button class="btn-neon-mini hover-scale" onclick="openDepositForGoal('{{ mt.id }}', '{{ mt.ten_muc_tieu|escapejs }}')" style="font-size: 11px; padding: 6px 12px; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">
+                <i class="fas fa-coins"></i> Góp Ngay
+            </button>
+        </div>
     </div>
+    {% empty %}
+    <div class="glass-card mb-2" style="text-align: center; border: 1px dashed #334155; padding: 20px; border-radius: 16px;">
+        <p class="text-xs text-slate-500 m-0">Chưa có mục tiêu tích lũy nào.</p>
+    </div>
+    {% endfor %}
+</div>
 
 <div class="animate-fade-in" style="animation-delay: 0.6s; margin-top: 30px;">
-        <h4 style="margin-bottom: 15px; font-size: 14px;">Sự Kiện & Nhắc Việc <i class="fa-solid fa-calendar-day text-purple-400 ml-1"></i></h4>
-        
-        {% for sk in su_kien_nhac_viec %}
-        <div class="glass-card mb-2 d-flex cursor-pointer hover-lift" onclick="window.location.href='/admin/quanlyquy/sukiennhacviec/{{ sk.id }}/change/'" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 15px;">
-            <div style="display: flex; gap: 15px; align-items: center; width: 100%;">
-                <div class="calendar-box">
-                    <span style="font-size: 9px; text-transform: uppercase; font-weight: 800;">T{{ sk.ngay_dien_ra.month }}</span>
-                    <span style="font-size: 16px; font-weight: 800;">{{ sk.ngay_dien_ra.day }}</span>
-                </div>
-                <div style="flex: 1;">
-                    <p style="margin: 0; font-size: 13px; font-weight: 800; color: #fff;">{{ sk.ten_su_kien }}</p>
-                    <p style="margin: 3px 0 0 0; font-size: 11px; color: #64748b;">{{ sk.mo_ta|truncatechars:25 }}</p>
-                </div>
-                <i class="fa-solid fa-chevron-right text-slate-700 text-[10px]"></i>
-            </div>
-        </div>
-        {% empty %}
-        <div class="glass-card mb-2" style="text-align: center; border: 1px dashed #334155; padding: 20px;">
-            <p class="text-xs text-slate-500 m-0"><i class="fa-regular fa-calendar-xmark mr-2"></i> Không có sự kiện nào.</p>
-        </div>
-        {% endfor %}
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+        <h4 style="margin: 0; font-size: 14px; display: flex; align-items: center; gap: 8px;">
+            Sự Kiện & Nhắc Việc 
+            <i class="fa-solid fa-calendar-day text-purple-400"></i>
+        </h4>
+
+        {% if is_admin %}
+        <a href="/admin/quanlyquy/sukiennhacviec/add/" class="hover-scale" title="Thêm sự kiện mới" 
+           style="background: var(--theme-primary); color: white; width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; text-decoration: none; box-shadow: 0 4px 10px var(--theme-glow); transition: 0.3s;">
+            <i class="fa-solid fa-plus"></i>
+        </a>
+        {% endif %}
     </div>
+    
+    {% for sk in su_kien_nhac_viec %}
+    <div class="glass-card mb-2 d-flex cursor-pointer hover-lift" onclick="window.location.href='/admin/quanlyquy/sukiennhacviec/{{ sk.id }}/change/'" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 12px; border-radius: 15px;">
+        <div style="display: flex; gap: 15px; align-items: center; width: 100%;">
+            <div class="calendar-box" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--theme-primary);">
+                <span style="font-size: 9px; text-transform: uppercase; font-weight: 800;">T{{ sk.ngay_dien_ra.month }}</span>
+                <span style="font-size: 16px; font-weight: 800;">{{ sk.ngay_dien_ra.day }}</span>
+            </div>
+            <div style="flex: 1;">
+                <p style="margin: 0; font-size: 13px; font-weight: 800; color: #fff;">{{ sk.ten_su_kien }}</p>
+                <p style="margin: 3px 0 0 0; font-size: 11px; color: #64748b;">{{ sk.mo_ta|truncatechars:25 }}</p>
+            </div>
+            <i class="fa-solid fa-chevron-right text-slate-700" style="font-size: 10px;"></i>
+        </div>
+    </div>
+    
+    {% empty %}
+    <div class="glass-card mb-2" style="text-align: center; border: 1px dashed #334155; padding: 20px;">
+        <p class="text-xs text-slate-500 m-0"><i class="fa-regular fa-calendar-xmark mr-2"></i> Không có sự kiện nào.</p>
+    </div>
+    {% endfor %}
+</div>
 
 <div class="animate-fade-in" style="animation-delay: 0.7s; margin-top: 30px;">
     <div class="card" style="background: linear-gradient(145deg, #181824, #222232); border: 1px solid rgba(255, 215, 0, 0.2); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); padding: 15px; border-radius: 16px;">
@@ -599,37 +662,6 @@
     </div>
 </div>
 
-<div class="animate-fade-in" style="animation-delay: 0.8s; margin-top: 30px;">
-    <div class="cf-card">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-            <div>
-                <h3 style="margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-hand-holding-heart cf-icon-pulse"></i> Chiến dịch lẩu
-                </h3>
-                <p style="margin: 5px 0 0 0; font-size: 11px; color: #8b8b99;">Mục tiêu: Đủ lúa quẩy cuối năm</p>
-            </div>
-            <div style="background: rgba(29, 209, 161, 0.1); color: #1dd1a1; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold; border: 1px solid rgba(29, 209, 161, 0.3);">
-                Còn 3 ngày
-            </div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 15px;">
-            <span style="color: #fff; font-weight: bold;">Đã gom: 1.500.000đ</span>
-            <span style="color: #8b8b99;">2.000.000đ</span>
-        </div>
-
-        <div class="cf-progress-bg">
-            <div class="cf-progress-fill" style="width: 75%;"></div>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #1dd1a1; font-weight: 900; font-size: 16px; text-shadow: 0 0 10px rgba(29, 209, 161, 0.3);">75%</span>
-            <button class="cf-btn" style="font-size: 12px; padding: 6px 12px;">
-                <i class="fas fa-coins"></i> Góp Ngay
-            </button>
-        </div>
-    </div>
-</div>
             </div>
         </div>
     </div>
@@ -659,13 +691,22 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="depositModal">
+   <div class="modal-overlay" id="depositModal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 style="margin: 0; color: var(--theme-primary);"><i class="fa-solid fa-coins me-2"></i>Nộp Quỹ Mới</h3>
+            <h3 style="margin: 0; color: var(--theme-primary);"><i class="fa-solid fa-coins me-2"></i>Nộp Quỹ</h3>
             <button type="button" class="modal-close" onclick="closeModal('depositModal')"><i class="fa-solid fa-xmark"></i></button>
         </div>
+        
+        <input type="hidden" id="inp-muc-tieu-id" value="">
+
+        <div id="goal-target-info" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 12px 15px; border-radius: 12px; margin-bottom: 15px;">
+            <span style="font-size: 11px; color: #10b981; font-weight: bold; display: block; margin-bottom: 3px;"><i class="fa-solid fa-bullseye"></i> ĐANG GÓP QUỸ CHO:</span>
+            <h4 id="goal-target-name" style="margin: 0; color: #fff; font-size: 14px;">---</h4>
+        </div>
+
         <form onsubmit="handleDeposit(event)">
+            {% csrf_token %}
             <label style="font-weight: 700; color: #64748b; font-size: 13px;">SỐ TIỀN (VNĐ)</label>
             <input type="text" id="inp-so-tien-thu" class="form-input" placeholder="VD: 500.000" oninput="formatMoneyInput(this)" required>
             
@@ -677,18 +718,18 @@
             
             <div id="incognito-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 12px 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); transition: all 0.3s ease;">
                 <div>
-                    <span id="incognito-title" style="font-size: 13px; font-weight: 800; color: var(--text-dark); display: block; transition: 0.3s;">
-                        <i id="incognito-icon" class="fa-solid fa-user-ninja" style="color: #64748b; margin-right: 8px; transition: 0.3s;"></i>Nộp ẩn danh
+                    <span id="incognito-title" style="font-size: 13px; font-weight: 800; color: var(--text-dark); display: block;">
+                        <i class="fa-solid fa-user-ninja" style="color: #64748b; margin-right: 8px;"></i>Nộp ẩn danh
                     </span>
-                    <span id="incognito-desc" style="font-size: 11px; color: var(--text-light); transition: 0.3s;">Người khác chỉ thấy "Nhà hảo tâm"</span>
+                    <span style="font-size: 11px; color: var(--text-light);">Người khác chỉ thấy "Nhà hảo tâm"</span>
                 </div>
-                <label style="position: relative; display: inline-block; width: 44px; height: 24px;">
-                    <input type="checkbox" id="inp-an-danh" name="is_an_danh" style="opacity: 0; width: 0; height: 0;" onchange="toggleIncognitoUI(this)">
+                <label class="switch-modern" style="position: relative; display: inline-block; width: 44px; height: 24px;">
+                    <input type="checkbox" id="inp-an-danh" name="is_an_danh" style="opacity: 0; width: 0; height: 0;">
                     <span class="slider round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px;"></span>
                 </label>
             </div>
             
-            <button type="submit" class="btn-confirm-action" style="width: 100%; display: block; margin-top: 10px; padding: 15px; border-radius: 12px; font-size: 14px;">
+            <button type="submit" class="btn-confirm-action" style="width: 100%; display: block; margin-top: 10px; padding: 15px; border-radius: 12px; font-size: 14px; font-weight: bold;">
                 XÁC NHẬN THU TIỀN <i class="fa-solid fa-check ms-2"></i>
             </button>
         </form>
@@ -774,29 +815,42 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="userProfileModal">
-        <div class="modal-content" style="width: 380px; text-align: center;">
+    <div class="modal-overlay" id="userProfileModal" style="z-index: 10000;">
+        <div class="modal-content" style="width: 380px; text-align: center; background: var(--theme-bg-base, #1e293b); border: 1px solid rgba(255,255,255,0.05);">
+            
             <div class="modal-header" style="justify-content: flex-end; margin-bottom: 0;">
-                <button class="modal-close" onclick="closeModal('userProfileModal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="modal-close" onclick="closeModal('userProfileModal')" style="background: transparent; border: none; cursor: pointer; color: var(--text-light, #94a3b8); font-size: 20px;"><i class="fa-solid fa-xmark"></i></button>
             </div>
+
             <div class="profile-header-premium">
                 <div style="position: relative; display: inline-block;">
                     {% if accounts.google %}
-                        <img src="{{ accounts.google.0.get_avatar_url }}" style="width: 100px; height: 100px; border-radius: 50%; border: 5px solid #f1f5f9; box-shadow: 0 10px 20px rgba(124, 58, 237, 0.2); object-fit: cover;">
+                        <img src="{{ accounts.google.0.get_avatar_url }}" style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px var(--theme-glow, rgba(0,0,0,0.5)); object-fit: cover;">
                     {% else %}
-                        <img src="https://ui-avatars.com/api/?name={{ request.user.username }}&background=7c3aed&color=fff" style="width: 100px; height: 100px; border-radius: 50%; border: 5px solid #f1f5f9; box-shadow: 0 10px 20px rgba(124, 58, 237, 0.2);">
+                        <div style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary)); color: white; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 900; border: 4px solid rgba(255,255,255,0.1); box-shadow: 0 10px 25px var(--theme-glow, rgba(0,0,0,0.5)); margin: 0 auto;">
+                            {{ request.user.username|slice:":1"|upper }}
+                        </div>
                     {% endif %}
-                    <div style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 20px; background: #10b981; border: 3px solid white; border-radius: 50%;"></div>
+                    <div class="status-indicator online pulse-dot" style="position: absolute; bottom: 5px; right: 5px; width: 20px; height: 20px; background: #10b981; border: 3px solid var(--theme-bg-base, #1e293b); border-radius: 50%;"></div>
                 </div>
-                <h2 style="font-weight: 900; color: #1e1b4b; margin: 15px 0 5px 0; font-size: 24px;">{{ request.user.full_name|default:request.user.username|upper }}</h2>
-                <p style="color: var(--primary); font-weight: 800; font-size: 13px; letter-spacing: 1px;">{{ user_role_name|upper }}</p>
+                
+                <h2 style="font-weight: 900; color: var(--text-dark, #fff); margin: 15px 0 5px 0; font-size: 24px;">{{ request.user.full_name|default:request.user.username|upper }}</h2>
+                <p style="color: var(--theme-primary); font-weight: 800; font-size: 13px; letter-spacing: 1px;">{{ user_role_name|default:"THÀNH VIÊN"|upper }}</p>
             </div>
-            <div class="profile-stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; padding: 20px 0;">
-                <div><span style="display:block; font-size: 11px; color: #64748b; font-weight: 700;">NGÀY THAM GIA</span><p style="margin:5px 0 0 0; font-weight: 800; font-size: 14px;">{{ request.user.date_joined|date:"d/m/Y" }}</p></div>
-                <div><span style="display:block; font-size: 11px; color: #64748b; font-weight: 700;">CHỨC VỤ</span><p style="margin:5px 0 0 0; font-weight: 800; font-size: 14px;">{{ user_role_name }}</p></div>
+            
+            <div class="profile-stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; border-top: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); padding: 20px 0;">
+                <div>
+                    <span style="display:block; font-size: 11px; color: var(--text-light, #94a3b8); font-weight: 700;">NGÀY THAM GIA</span>
+                    <p style="margin:5px 0 0 0; font-weight: 800; font-size: 14px; color: var(--text-dark, #fff);">{{ request.user.date_joined|date:"d/m/Y" }}</p>
+                </div>
+                <div>
+                    <span style="display:block; font-size: 11px; color: var(--text-light, #94a3b8); font-weight: 700;">CHỨC VỤ</span>
+                    <p style="margin:5px 0 0 0; font-weight: 800; font-size: 14px; color: var(--text-dark, #fff);">{{ user_role_name|default:"Thành viên" }}</p>
+                </div>
             </div>
+            
             <div style="display: flex; gap: 12px;">
-                <button onclick="closeModal('userProfileModal')" style="flex: 1; padding: 16px; border-radius: 16px; border: none; background: #1e1b4b; color: white; font-weight: 900; cursor: pointer; transition: 0.3s;" class="hover-scale">ĐÓNG HỒ SƠ</button>
+                <button onclick="closeModal('userProfileModal')" style="width: 100%; padding: 16px; border-radius: 16px; border: none; background: linear-gradient(90deg, var(--theme-primary), var(--theme-secondary)); box-shadow: 0 5px 15px var(--theme-glow, rgba(0,0,0,0.3)); color: white; font-weight: 900; cursor: pointer; transition: 0.3s;" class="hover-scale">ĐÓNG HỒ SƠ</button>
             </div>
         </div>
     </div>
@@ -922,68 +976,168 @@
     </div>
     {% endif %}
     <script>
-        document.getElementById('pinForm').onsubmit = function(event) {
-        event.preventDefault(); 
-        
-        let fullPin = '';
-        for(let i=1; i<=6; i++) {
-            let input = document.getElementById('pin' + i);
-            if(input) { fullPin += input.value; }
+        // 1. CẤU HÌNH BIẾN TOÀN CỤC TỪ DJANGO
+        const IS_ADMIN = {% if is_admin %}true{% else %}false{% endif %};
+        const CSRF_TOKEN = '{{ csrf_token }}';
+
+        // 2. HÀM MỞ/ĐÓNG MODAL CƠ BẢN
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            if(modal) {
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+            }
         }
 
-        if (fullPin.length < 6) {
-            // Dùng Toast thay vì Alert
-            showToast('Vui lòng nhập đủ 6 số bảo mật!', 'warning');
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if(modal) {
+                modal.classList.remove('active');
+                modal.style.display = 'none';
+                // Reset form nộp tiền nếu đóng modal này
+                if(id === 'depositModal') {
+                    document.getElementById('inp-muc-tieu-id').value = '';
+                    document.getElementById('goal-target-info').style.display = 'none';
+                }
+            }
+        }
+
+        // 3. HỒI SINH NÚT "GÓP NGAY" (KÍCH HOẠT MỤC TIÊU)
+        function openDepositForGoal(goalId, goalName) {
+            const mtIdInput = document.getElementById('inp-muc-tieu-id');
+            const mtNameH4 = document.getElementById('goal-target-name');
+            const mtInfoDiv = document.getElementById('goal-target-info');
+            const lyDoInput = document.getElementById('inp-ly-do-thu');
+
+            if(mtIdInput) mtIdInput.value = goalId;
+            if(mtNameH4) mtNameH4.innerText = goalName;
+            if(mtInfoDiv) mtInfoDiv.style.display = 'block';
+            if(lyDoInput) lyDoInput.value = "Đóng góp cho: " + goalName;
+
+            openModal('depositModal');
+        }
+
+        // 4. XỬ LÝ GỬI TIỀN NỘP QUỸ LÊN SERVER
+        async function handleDeposit(event) {
+    event.preventDefault();
+    const soTien = document.getElementById('inp-so-tien-thu').value;
+    const lyDo = document.getElementById('inp-ly-do-thu').value;
+    const isAnDanhInput = document.getElementById('inp-an-danh');
+    const isAnDanh = isAnDanhInput ? isAnDanhInput.checked : false;
+    const mucTieuInput = document.getElementById('inp-muc-tieu-id');
+    const mucTieuId = mucTieuInput ? mucTieuInput.value : null;
+
+    try {
+        const res = await fetch('/api/nop-quy/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Tạm thời đã tắt CSRF trên server nên không sợ token đá nữa
+            },
+            body: JSON.stringify({
+                so_tien: soTien,
+                ly_do: lyDo,
+                is_an_danh: isAnDanh,
+                muc_tieu_id: mucTieuId 
+            })
+        });
+
+        // 🚨 CHỖ NÀY SẼ BÁO CHO SẾP BIẾT LỖI GÌ:
+        if (!res.ok) {
+            alert("MÁY CHỦ TRẢ VỀ LỖI MÃ: " + res.status + "\n(404 = Chưa khai báo urls.py | 500 = Lỗi code Python)");
+            return;
+        }
+
+        const data = await res.json();
+        if(data.status === 'success') {
+            window.location.reload(); 
+        } else {
+            alert(data.message);
+        }
+    } catch(e) {
+        console.error(e);
+        alert('SẬP SERVER! (Sếp bật tab Terminal/CMD đang chạy Runserver lên xem nó có báo lỗi đỏ nào không nhé)');
+    }
+}
+
+        // 5. LOGIC XÁC THỰC MÃ PIN BẢO MẬT (SẾP CUNG CẤP)
+        document.getElementById('pinForm').onsubmit = function(event) {
+            event.preventDefault(); 
             
-            // Rung lắc form nhắc nhẹ người dùng
-            const content = document.querySelector('#pinModal .modal-content');
-            if (content) {
-                content.style.animation = 'shake 0.4s ease';
-                setTimeout(() => content.style.animation = '', 400);
+            let fullPin = '';
+            for(let i=1; i<=6; i++) {
+                let input = document.getElementById('pin' + i);
+                if(input) { fullPin += input.value; }
+            }
+
+            if (fullPin.length < 6) {
+                if(typeof showToast === 'function') showToast('Vui lòng nhập đủ 6 số!', 'warning');
+                else alert('Vui lòng nhập đủ 6 số!');
+                
+                const content = document.querySelector('#pinModal .modal-content');
+                if (content) {
+                    content.style.animation = 'shake 0.4s ease';
+                    setTimeout(() => content.style.animation = '', 400);
+                }
+                return false;
+            }
+
+            if (fullPin === '123456') { 
+                // Mở khóa dữ liệu nhạy cảm
+                document.querySelectorAll('.sensitive-data').forEach(el => {
+                    el.classList.add('revealed');
+                    if (el.hasAttribute('data-value')) {
+                        el.innerText = el.getAttribute('data-value');
+                    }
+                });
+
+                // Cập nhật UI trạng thái
+                let eyeIcon = document.getElementById('eye-icon');
+                if(eyeIcon) eyeIcon.className = 'fa-regular fa-eye text-primary cursor-pointer text-xl';
+                
+                let statusBadge = document.getElementById('security-status');
+                if(statusBadge) {
+                    statusBadge.innerHTML = '<i class="fa-solid fa-unlock"></i> ĐÃ XÁC MINH';
+                    statusBadge.className = 'text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-100 text-emerald-600';
+                }
+
+                closeModal('pinModal');
+                if(typeof showToast === 'function') showToast('Xác thực thành công!', 'success');
+            } else {
+                if(typeof showToast === 'function') showToast('Mã PIN sai!', 'error');
+                else alert('Mã PIN không chính xác!');
+                
+                document.getElementById('pinForm').reset();
+                document.getElementById('pin1').focus();
             }
             return false;
-        }
+        };
 
-        if (fullPin === '123456') { 
-            // 1. Mở khóa dữ liệu
-            document.querySelectorAll('.sensitive-data').forEach(el => {
-                el.classList.add('revealed');
-                if (el.hasAttribute('data-value')) {
-                    el.innerText = el.getAttribute('data-value');
+        // 6. TỰ ĐỘNG CHUYỂN Ô KHI NHẬP PIN
+        document.querySelectorAll('.pin-inputs input').forEach((input, index, inputs) => {
+            input.addEventListener('input', () => {
+                if (input.value.length === 1 && index < inputs.length - 1) {
+                    inputs[index + 1].focus();
                 }
             });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && input.value.length === 0 && index > 0) {
+                    inputs[index - 1].focus();
+                }
+            });
+        });
 
-            // 2. Đổi UI
-            let eyeIcon = document.getElementById('eye-icon');
-            if(eyeIcon) eyeIcon.className = 'fa-regular fa-eye text-primary cursor-pointer text-xl';
-            
-            let statusBadge = document.getElementById('security-status');
-            if(statusBadge) {
-                statusBadge.innerHTML = '<i class="fa-solid fa-unlock"></i> ĐÃ XÁC MINH';
-                statusBadge.className = 'text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-100 text-emerald-600';
+        // 7. LOGIC CHATBOT
+        function toggleChatbot() {
+            const bot = document.getElementById('chatbot-window');
+            if(!bot) return;
+            if(bot.style.transform === 'scale(1)') {
+                bot.style.transform = 'scale(0)'; bot.style.opacity = '0';
+            } else {
+                bot.style.transform = 'scale(1)'; bot.style.opacity = '1';
+                document.getElementById('chat-input').focus();
             }
-
-            // 3. Đóng form và hiện Toast thành công
-            document.getElementById('pinModal').style.display = 'none';
-            showToast('Mở khóa thành công! Dữ liệu đã hiện ra.', 'success');
-            
-        } else {
-            showToast('Mã PIN không chính xác! Vui lòng thử lại.', 'error');
-            
-            const content = document.querySelector('#pinModal .modal-content');
-            if (content) {
-                content.style.animation = 'shake 0.4s ease';
-                setTimeout(() => content.style.animation = '', 400);
-            }
-            
-            document.getElementById('pinForm').reset();
-            document.getElementById('pin1').focus();
         }
-        
-        return false;
-    };
-        // Tạo một hằng số JS đọc giá trị từ backend Django
-        const IS_ADMIN = {% if is_admin %}true{% else %}false{% endif %};
     </script>
 
     <script src="{% static 'quanlyquy/js/dashboard.js' %}"></script>

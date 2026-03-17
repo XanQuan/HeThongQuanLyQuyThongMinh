@@ -167,6 +167,10 @@ class GiaoDich(BaseModel):
     
     # [QUAN TRỌNG]: Thêm cột dot_thu để tránh lỗi Crash khi xem biểu đồ Thống Kê
     dot_thu = models.ForeignKey('DotThu', on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Đợt thu")
+    
+    # [MỚI THÊM NÈ SẾP]: Kết nối Giao dịch với Mục tiêu để hệ thống biết tiền này nộp cho mục tiêu nào
+    muc_tieu = models.ForeignKey('MucTieuQuy', on_delete=models.SET_NULL, null=True, blank=True, related_name='cac_giao_dich', verbose_name="Thuộc mục tiêu")
+    
     danh_muc = models.ForeignKey(DanhMucThuChi, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Danh mục")
     thanh_vien = models.ForeignKey(ThanhVien, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Thành viên")
     ly_do = models.CharField(max_length=255, verbose_name="Nội dung/Ghi chú")

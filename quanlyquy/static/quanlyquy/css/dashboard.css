@@ -1643,3 +1643,29 @@ body {
 .pulse-dot {
     animation: dotPulseTheme 2s infinite !important;
 }
+
+/* =========================================
+   HIỆU ỨNG ICON DÒNG TIỀN (CHUYỂN ĐỘNG SO LE)
+========================================= */
+/* =========================================
+   HIỆU ỨNG DÒNG TIỀN (BẢN FIX ĐẦU TRÒN)
+========================================= */
+.audio-bars {
+    /* Quan trọng: Để đầu tròn không bị cắt khi nhảy cao */
+    overflow: visible !important; 
+}
+
+.audio-bars rect {
+    transform-box: fill-box;
+    transform-origin: bottom;
+}
+
+/* 3 thanh nhảy so le không trùng nhịp */
+.bar1 { animation: audio-bars-dance 0.8s ease-in-out infinite alternate; }
+.bar2 { animation: audio-bars-dance 0.6s ease-in-out infinite alternate; }
+.bar3 { animation: audio-bars-dance 0.5s ease-in-out infinite alternate; }
+
+@keyframes audio-bars-dance {
+    from { transform: scaleY(1); }
+    to   { transform: scaleY(1.4); } /* Nhảy cao thêm 40% so với gốc */
+}
