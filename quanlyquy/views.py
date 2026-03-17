@@ -396,6 +396,7 @@ def tien_do_thu_view(request):
         # Tính tiền đóng dựa trên Đợt thu hiện tại
         da_nop = GiaoDich.objects.filter(thanh_vien=tv, dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
         is_me = (tv.mssv == getattr(request.user, 'mssv', None) or tv.email == request.user.email)
+        danh_sach_no = [x for x in thanh_vien_stats_raw if x['is_no_xau']]
         
         thanh_vien_stats_raw.append({
             'id': tv.id, 
@@ -415,6 +416,7 @@ def tien_do_thu_view(request):
     
     # Lấy trạng thái của chính sếp Quân để hiện Badge riêng
     my_status = next((x['is_hoan_thanh'] for x in thanh_vien_stats_raw if x['is_me']), False)
+    
 
     context = {
         'is_admin': is_admin,
@@ -428,8 +430,9 @@ def tien_do_thu_view(request):
         'thanh_vien_stats': thanh_vien_stats,
         'search_query': search_query,
         'my_status': my_status, # Cần thiết cho Badge "Trạng thái của bạn"
-        'debt_count': len([x for x in thanh_vien_stats_raw if x['is_no_xau']]), # Đếm người nợ
-       'deadline': dot_thu.han_chot.strftime("%d/%m/%Y") if dot_thu and dot_thu.han_chot else "Chưa đặt",
+        'debt_count': len(danh_sach_no),
+        'danh_sach_no': danh_sach_no,
+        'deadline': dot_thu.han_chot.strftime("%d/%m/%Y") if dot_thu and dot_thu.han_chot else "Chưa đặt",
     }
     return render(request, 'quanlyquy/page_tien_do.html', context)
 
@@ -440,23 +443,38 @@ def cai_dat_view(request):
 
 @login_required
 def gamification_view(request):
-    is_admin = (request.user.role == 'ADMIN' or request.user.is_superuser)
-    nhiem_vu_list = NhiemVu.objects.filter(deleted_at__isnull=True)
-    bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True)
+    # Dùng hàm helper để kiểm tra quyền Admin chuẩn xác
+    is_admin = is_thu_quy(request.user)
     
-    top_dai_gia = ThanhVien.objects.annotate(
-        tong_nop=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU'))
-    ).order_by('-tong_nop')[:3]
+    # Ép tên chức vụ hiển thị đúng trên UI
+    user_role_name = "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp"
+    
+    # Lấy danh sách nhiệm vụ từ Database (Lấy cả nhiệm vụ sếp vừa tạo)
+    nhiem_vu_list = NhiemVu.objects.filter(is_active=True).order_by('-phan_thuong_xu')
+    bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True)
+    cua_hang_items = QuaTang.objects.filter(is_active=True)[:3]
+    
+    # Lấy ví Xu của người dùng
+    my_tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+    if not my_tv:
+        my_tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+    vi_xu = getattr(my_tv, 'vi_xu', 0) if my_tv else getattr(request.user, 'credit_score', 0)
+
+    # Bảng xếp hạng
+    top_dai_gia = ThanhVien.objects.all().order_by('-tong_xu_tich_luy')[:5]
 
     context = {
         'nhiem_vu_list': nhiem_vu_list,
         'bieu_quyet_active': bieu_quyet_active,
+        'cua_hang_items': cua_hang_items,
         'top_dai_gia': top_dai_gia,
         'is_admin': is_admin,
-        'has_vong_quay': True 
+        'user_role_name': user_role_name,
+        'vi_xu': vi_xu,
+        'has_vong_quay': True,
+        'days_left': 5
     }
     return render(request, 'quanlyquy/gamification.html', context)
-
 @login_required
 def export_misa_view(request):
     is_admin = getattr(request.user, 'role', '') == 'ADMIN' or request.user.is_superuser
@@ -633,49 +651,3 @@ from django.views.decorators.http import require_POST
 import json
 from django.http import JsonResponse
 
-@csrf_exempt  # <-- KIM BÀI MIỄN TỬ: Tạm thời tắt bảo mật để tiền vào mượt
-@login_required
-@require_POST
-def api_nop_quy(request):
-    try:
-        data = json.loads(request.body)
-        
-        # Xử lý số tiền (xóa dấu chấm)
-        so_tien_raw = str(data.get('so_tien', '0')).replace('.', '').replace(',', '')
-        so_tien = int(so_tien_raw)
-        
-        ly_do = data.get('ly_do', 'Đóng quỹ lớp')
-        muc_tieu_id = data.get('muc_tieu_id')
-        is_an_danh = data.get('is_an_danh', False)
-
-        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
-        if not tv:
-            tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
-
-        quy = LoaiQuy.objects.first() 
-        if not quy:
-            return JsonResponse({'status': 'error', 'message': 'Chưa có Quỹ nào!'})
-
-        GiaoDich.objects.create(
-            loai='THU',
-            so_tien=so_tien,
-            ly_do=ly_do,
-            loai_quy=quy,
-            thanh_vien=tv,
-            is_an_danh=is_an_danh
-        )
-
-        if muc_tieu_id:
-            mt_obj = MucTieuQuy.objects.filter(id=muc_tieu_id).first()
-            if mt_obj:
-                tien_hien_tai = getattr(mt_obj, 'tien_hien_tai', getattr(mt_obj, 'so_tien_hien_tai', 0)) or 0
-                if hasattr(mt_obj, 'tien_hien_tai'):
-                    mt_obj.tien_hien_tai = tien_hien_tai + so_tien
-                elif hasattr(mt_obj, 'so_tien_hien_tai'):
-                    mt_obj.so_tien_hien_tai = tien_hien_tai + so_tien
-                mt_obj.save()
-
-        return JsonResponse({'status': 'success', 'message': 'Góp quỹ thành công!'})
-        
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': f'Lỗi Backend: {str(e)}'})

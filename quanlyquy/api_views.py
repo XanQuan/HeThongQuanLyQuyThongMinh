@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Sum, Q
 from django.db.models.functions import TruncDay, TruncMonth, TruncYear
 from django.utils import timezone
+from django.db import transaction
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
@@ -24,25 +25,23 @@ except ImportError:
 # --- HÀM HỖ TRỢ XỬ LÝ SỐ TIỀN ---
 def clean_amount(amount_str):
     if not amount_str: return 0
-    # Xóa dấu chấm và phẩy để biến "20.000" thành 20000
     return int(str(amount_str).replace('.', '').replace(',', ''))
 
 # ==========================================
-# 1. API NỘP QUỸ (THU TIỀN)
+# 1. API NỘP QUỸ (THU TIỀN TỰ NỘP)
 # ==========================================
-@csrf_exempt  # Tắt chặn bảo mật để tránh lỗi 403
+@csrf_exempt  
 @login_required
 @require_POST
+@transaction.atomic # Khóa DB, nộp tiền và cộng xu phải diễn ra cùng lúc!
 def api_nop_quy(request):
     try:
         data = json.loads(request.body)
         
-        # Tối ưu: Tìm thành viên an toàn bằng MSSV trước, không có mới tìm Email
         tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
         if not tv:
             tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
 
-        # Tối ưu: Lấy quỹ đầu tiên an toàn nhất
         quy = LoaiQuy.objects.first()
         if not quy:
             return JsonResponse({'status': 'error', 'message': 'Hệ thống chưa có Quỹ!'})
@@ -56,96 +55,133 @@ def api_nop_quy(request):
         muc_tieu_id = data.get('muc_tieu_id')
         muc_tieu_obj = MucTieuQuy.objects.filter(id=muc_tieu_id).first() if muc_tieu_id else None
 
-        # TẠO GIAO DỊCH
+        # TẠO GIAO DỊCH TIỀN MẶT
         GiaoDich.objects.create(
-            loai='THU', 
-            so_tien=so_tien, 
-            ly_do=ly_do, 
-            loai_quy=quy, 
-            thanh_vien=tv, 
-            dot_thu=dot_thu_obj, 
-            muc_tieu=muc_tieu_obj,
+            loai='THU', so_tien=so_tien, ly_do=ly_do, loai_quy=quy, 
+            thanh_vien=tv, dot_thu=dot_thu_obj, muc_tieu=muc_tieu_obj,
             danh_muc_id=data.get('category_id'), 
             is_an_danh=data.get('is_an_danh', False),
             created_by=str(request.user.id)
         )
 
-        # AUTO-CỘNG TIỀN VÀO MỤC TIÊU QUỸ 
+        # CỘNG TIỀN VÀO MỤC TIÊU
         if muc_tieu_obj:
             tien_ht = getattr(muc_tieu_obj, 'tien_hien_tai', getattr(muc_tieu_obj, 'so_tien_hien_tai', 0)) or 0
             tien_mt = getattr(muc_tieu_obj, 'tien_muc_tieu', getattr(muc_tieu_obj, 'so_tien_muc_tieu', 0)) or 0
-            
             tien_ht_moi = tien_ht + so_tien
-            
-            if hasattr(muc_tieu_obj, 'tien_hien_tai'):
-                muc_tieu_obj.tien_hien_tai = tien_ht_moi
-            elif hasattr(muc_tieu_obj, 'so_tien_hien_tai'):
-                muc_tieu_obj.so_tien_hien_tai = tien_ht_moi
-                
-            if tien_ht_moi >= tien_mt and tien_mt > 0:
-                muc_tieu_obj.hoan_thanh = True
-                
+            if hasattr(muc_tieu_obj, 'tien_hien_tai'): muc_tieu_obj.tien_hien_tai = tien_ht_moi
+            elif hasattr(muc_tieu_obj, 'so_tien_hien_tai'): muc_tieu_obj.so_tien_hien_tai = tien_ht_moi
+            if tien_ht_moi >= tien_mt and tien_mt > 0: muc_tieu_obj.hoan_thanh = True
             muc_tieu_obj.save()
 
         if tv and tv.is_no_xau:
             tv.is_no_xau = False
             tv.save()
 
-        return JsonResponse({'status': 'success', 'message': 'Nộp quỹ thành công!'})
+        # ==========================================
+        # LOGIC CỘNG XU GAMIFICATION (TỰ NỘP)
+        # ==========================================
+        xu_thuong = 0
+        try:
+            if tv and hasattr(tv, 'vi_xu'):
+                xu_co_ban = int(so_tien / 10000) # 10k = 1 Xu
+                xu_thuong = xu_co_ban
+                ly_do_thuong = f"Đóng quỹ ({xu_co_ban} Xu)"
+
+                # Nhiệm vụ: Nộp sớm trước hạn 3 ngày
+                if dot_thu_obj and dot_thu_obj.han_chot:
+                    if timezone.now().date() <= (dot_thu_obj.han_chot - timedelta(days=3)):
+                        xu_thuong += 10
+                        ly_do_thuong += " + Kẻ Hủy Diệt Deadline (10 Xu)"
+
+                if xu_thuong > 0:
+                    tv.vi_xu += xu_thuong
+                    tv.tong_xu_tich_luy += xu_thuong
+                    tv.save()
+
+                    # Lưu lịch sử (Cần Import Model ở trên, nếu lỗi thì pass)
+                    from .models import LichSuGiaoDichXu
+                    LichSuGiaoDichXu.objects.create(
+                        thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=xu_thuong, ly_do=ly_do_thuong
+                    )
+        except Exception as e:
+            print("Chưa cấu hình Model Xu:", e)
+
+        msg = f'Nộp quỹ thành công! Bạn được thưởng +{xu_thuong} Xu' if xu_thuong > 0 else 'Nộp quỹ thành công!'
+        return JsonResponse({'status': 'success', 'message': msg, 'xu': xu_thuong})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Lỗi hệ thống: {str(e)}'})
 
 # ==========================================
-# 2. API NỘP QUỸ HỘ
+# 2. API NỘP QUỸ HỘ (ĐẠI GIA BAO NUÔI)
 # ==========================================
 @csrf_exempt
 @login_required
+@transaction.atomic
 def api_nop_quy_ho(request):
     try:
         data = json.loads(request.body)
-        tv = ThanhVien.objects.get(id=data.get('tv_id'))
+        
+        # ID của người ĐƯỢC nộp hộ (lấy từ modal Tiến Độ)
+        thanh_vien_id = data.get('tv_id') or data.get('thanh_vien_id')
+        tv = ThanhVien.objects.get(id=thanh_vien_id)
+        
         so_tien = clean_amount(data.get('so_tien'))
         
         dot_thu_id = data.get('dot_thu_id')
         dot_thu_obj = DotThu.objects.filter(id=dot_thu_id).first() if dot_thu_id else None
         
-        muc_tieu_id = data.get('muc_tieu_id')
-        muc_tieu_obj = MucTieuQuy.objects.filter(id=muc_tieu_id).first() if muc_tieu_id else None
-
         quy = LoaiQuy.objects.first()
         if not quy:
             return JsonResponse({'status': 'error', 'message': 'Hệ thống chưa có Quỹ!'})
 
+        # LƯU GIAO DỊCH TIỀN
         GiaoDich.objects.create(
-            loai='THU', 
-            so_tien=so_tien, 
-            ly_do=data.get('ly_do'),
-            loai_quy=quy,
-            thanh_vien=tv,
-            dot_thu=dot_thu_obj,
-            muc_tieu=muc_tieu_obj, 
-            danh_muc_id=data.get('category_id'),
+            loai='THU', so_tien=so_tien, ly_do=data.get('ly_do') or f"Nộp quỹ hộ cho {tv.ho_ten}",
+            loai_quy=quy, thanh_vien=tv, dot_thu=dot_thu_obj,
             created_by=str(request.user.id)
         )
 
-        if muc_tieu_obj:
-            tien_ht = getattr(muc_tieu_obj, 'tien_hien_tai', getattr(muc_tieu_obj, 'so_tien_hien_tai', 0)) or 0
-            tien_mt = getattr(muc_tieu_obj, 'tien_muc_tieu', getattr(muc_tieu_obj, 'so_tien_muc_tieu', 0)) or 0
-            tien_ht_moi = tien_ht + so_tien
-            
-            if hasattr(muc_tieu_obj, 'tien_hien_tai'):
-                muc_tieu_obj.tien_hien_tai = tien_ht_moi
-            elif hasattr(muc_tieu_obj, 'so_tien_hien_tai'):
-                muc_tieu_obj.so_tien_hien_tai = tien_ht_moi
-                
-            if tien_ht_moi >= tien_mt and tien_mt > 0:
-                muc_tieu_obj.hoan_thanh = True
-            muc_tieu_obj.save()
+        if tv.is_no_xau:
+            tv.is_no_xau = False
+            tv.save()
 
-        return JsonResponse({'status': 'success', 'message': 'Nộp quỹ hộ thành công!'})
+        # ==========================================
+        # LOGIC CỘNG XU GAMIFICATION (NỘP HỘ)
+        # ==========================================
+        xu_thuong_nguoi_nop = 5 # Mặc định thưởng 5 Xu cho người tốt bụng
+        try:
+            # 1. Thưởng Xu cơ bản cho đứa được nộp hộ (Vẫn cho nó để nó đua top)
+            if hasattr(tv, 'vi_xu'):
+                xu_co_ban = int(so_tien / 10000)
+                if xu_co_ban > 0:
+                    tv.vi_xu += xu_co_ban
+                    tv.tong_xu_tich_luy += xu_co_ban
+                    tv.save()
+                    from .models import LichSuGiaoDichXu
+                    LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=xu_co_ban, ly_do=f"Được {request.user.full_name} nộp hộ")
+
+            # 2. Thưởng Nhiệm vụ "Đại Gia Bao Nuôi" cho Sếp (Người đang bấm nút)
+            nguoi_nop_ho = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+            if not nguoi_nop_ho:
+                nguoi_nop_ho = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+
+            if nguoi_nop_ho and hasattr(nguoi_nop_ho, 'vi_xu'):
+                nguoi_nop_ho.vi_xu += xu_thuong_nguoi_nop
+                nguoi_nop_ho.tong_xu_tich_luy += xu_thuong_nguoi_nop
+                nguoi_nop_ho.save()
+                
+                from .models import LichSuGiaoDichXu
+                LichSuGiaoDichXu.objects.create(
+                    thanh_vien=nguoi_nop_ho, loai_giao_dich='CONG_XU', so_xu=xu_thuong_nguoi_nop, 
+                    ly_do=f"Đại gia bao nuôi: Nộp hộ cho {tv.ho_ten} (+5 Xu)"
+                )
+        except Exception as e:
+            print("Chưa cấu hình Model Xu:", e)
+
+        return JsonResponse({'status': 'success', 'message': f'Nộp hộ thành công! Bạn được cộng +{xu_thuong_nguoi_nop} Xu uy tín!', 'xu': xu_thuong_nguoi_nop})
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)})
-
 # ==========================================
 # 3. API TẠM ỨNG TIỀN
 # ==========================================
@@ -374,3 +410,51 @@ def api_verify_pin(request):
             return JsonResponse({"status": "error", "message": "Mã PIN không chính xác!"})
     except Exception as e:
          return JsonResponse({"status": "error", "message": f"Lỗi: {str(e)}"})
+    
+@csrf_exempt  # <-- KIM BÀI MIỄN TỬ: Tạm thời tắt bảo mật để tiền vào mượt
+@login_required
+@require_POST
+def api_nop_quy(request):
+    try:
+        data = json.loads(request.body)
+        
+        # Xử lý số tiền (xóa dấu chấm)
+        so_tien_raw = str(data.get('so_tien', '0')).replace('.', '').replace(',', '')
+        so_tien = int(so_tien_raw)
+        
+        ly_do = data.get('ly_do', 'Đóng quỹ lớp')
+        muc_tieu_id = data.get('muc_tieu_id')
+        is_an_danh = data.get('is_an_danh', False)
+
+        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+        if not tv:
+            tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+
+        quy = LoaiQuy.objects.first() 
+        if not quy:
+            return JsonResponse({'status': 'error', 'message': 'Chưa có Quỹ nào!'})
+
+        GiaoDich.objects.create(
+            loai='THU',
+            so_tien=so_tien,
+            ly_do=ly_do,
+            loai_quy=quy,
+            thanh_vien=tv,
+            is_an_danh=is_an_danh
+        )
+
+        if muc_tieu_id:
+            mt_obj = MucTieuQuy.objects.filter(id=muc_tieu_id).first()
+            if mt_obj:
+                tien_hien_tai = getattr(mt_obj, 'tien_hien_tai', getattr(mt_obj, 'so_tien_hien_tai', 0)) or 0
+                if hasattr(mt_obj, 'tien_hien_tai'):
+                    mt_obj.tien_hien_tai = tien_hien_tai + so_tien
+                elif hasattr(mt_obj, 'so_tien_hien_tai'):
+                    mt_obj.so_tien_hien_tai = tien_hien_tai + so_tien
+                mt_obj.save()
+
+        return JsonResponse({'status': 'success', 'message': 'Góp quỹ thành công!'})
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': f'Lỗi Backend: {str(e)}'})
+    

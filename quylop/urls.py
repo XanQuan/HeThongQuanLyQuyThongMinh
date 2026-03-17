@@ -46,7 +46,7 @@ urlpatterns = [
     path('api/nhac-no/', api_views.api_nhac_no, name='api_nhac_no'),
     path('api/chart-data/', api_views.api_chart_data, name='api_chart_data'),
     path('giao-dich/export-misa/', views.export_misa_view, name='export_misa'),
-    path('api/nop-quy/', views.api_nop_quy, name='api_nop_quy'),
+    path('api/nop-quy/', api_views.api_nop_quy, name='api_nop_quy'),
     
     # --- 4. HÀM ĐĂNG NHẬP, ĐĂNG KÝ & ĐĂNG XUẤT ---
     path('accounts/login/', views.login_view, name='login'),

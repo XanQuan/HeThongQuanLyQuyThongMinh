@@ -167,7 +167,16 @@ class PhieuDeXuatChiAdmin(ModelAdmin): list_display = ('nguoi_de_xuat', 'so_tien
 class KhieuNaiAdmin(ModelAdmin): list_display = ('tieu_de', 'thanh_vien', 'trang_thai'); list_editable = ('trang_thai',)
 
 @admin.register(NhiemVu)
-class NhiemVuAdmin(ModelAdmin): list_display = ('ten_nhiem_vu', 'xu_thuong', 'is_kich_hoat'); list_editable = ('is_kich_hoat',)
+class NhiemVuAdmin(admin.ModelAdmin):
+    # Đổi tên cột cho đúng với models mới
+    list_display = ('ten_nhiem_vu', 'loai_nhiem_vu', 'phan_thuong_xu', 'is_active', 'created_at')
+    
+    # Đổi tên cột cho phép edit nhanh
+    list_editable = ('is_active',) 
+    
+    # Tiện tay thêm luôn bộ lọc cho Pro
+    list_filter = ('loai_nhiem_vu', 'is_active')
+    search_fields = ('ten_nhiem_vu',)
 
 @admin.register(QuaTang)
 class QuaTangAdmin(ModelAdmin): list_display = ('ten_qua', 'gia_xu', 'so_luong_kho')
