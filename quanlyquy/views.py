@@ -19,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 # Gom tất cả Model vào 1 chỗ cho dễ quản lý
 from .models import (
-    GiaoDich, ThanhVien, TaiSan, LoaiQuy, DotThu, 
+    GiaoDich, LichSuGiaoDichXu, ThanhVien, TaiSan, LoaiQuy, DotThu, 
     MucTieuQuy, SuKienNhacViec, User, QuaTang, 
     NhiemVu, BieuQuyet, HuyHieuThanhVien, QATestingLog, 
     LichSuWebhook, DanhMucThuChi
@@ -449,19 +449,49 @@ def gamification_view(request):
     # Ép tên chức vụ hiển thị đúng trên UI
     user_role_name = "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp"
     
-    # Lấy danh sách nhiệm vụ từ Database (Lấy cả nhiệm vụ sếp vừa tạo)
-    nhiem_vu_list = NhiemVu.objects.filter(is_active=True).order_by('-phan_thuong_xu')
-    bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True)
-    cua_hang_items = QuaTang.objects.filter(is_active=True)[:3]
+    # ========================================================
+    # 1. PHẢI TÌM my_tv TRƯỚC ĐỂ TRÁNH LỖI UNBOUND LOCAL ERROR
+    # ========================================================
+    my_tv = None 
+    mssv_user = getattr(request.user, 'mssv', '')
+    email_user = getattr(request.user, 'email', '')
+
+    if mssv_user:
+        my_tv = ThanhVien.objects.filter(mssv=mssv_user).first()
     
-    # Lấy ví Xu của người dùng
-    my_tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
-    if not my_tv:
-        my_tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+    if not my_tv and email_user:
+        my_tv = ThanhVien.objects.filter(email=email_user).first()
+        
     vi_xu = getattr(my_tv, 'vi_xu', 0) if my_tv else getattr(request.user, 'credit_score', 0)
 
+    # ========================================================
+    # 2. SAU KHI CÓ my_tv RỒI MỚI TÌM LỊCH SỬ XU VÀ VOTE
+    # ========================================================
+    lich_su_xu = LichSuGiaoDichXu.objects.filter(thanh_vien=my_tv).order_by('-ngay_thuc_hien')[:20] if my_tv else []
+    voted_poll_ids = []
+    
+    if my_tv:
+        for log in lich_su_xu:
+            if log.ly_do.startswith("Vote khảo sát ID:"):
+                try: 
+                    voted_poll_ids.append(int(log.ly_do.split(':')[1]))
+                except: 
+                    pass
+    
+    # Lấy danh sách nhiệm vụ từ Database (Lấy cả nhiệm vụ sếp vừa tạo)
+    nhiem_vu_list = NhiemVu.objects.filter(is_active=True).order_by('id')
+    bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True)
+    cua_hang_items = QuaTang.objects.filter(is_active=True)[:3]
+
     # Bảng xếp hạng
-    top_dai_gia = ThanhVien.objects.all().order_by('-tong_xu_tich_luy')[:5]
+    top_dai_gia_raw = ThanhVien.objects.all().order_by('-tong_xu_tich_luy')[:5]
+    top_dai_gia = []
+    
+    for tv in top_dai_gia_raw:
+        # Lấy tối đa 3 huy hiệu xịn nhất của người này
+        huy_hieus = HuyHieuThanhVien.objects.filter(thanh_vien=tv).select_related('huy_hieu')[:3]
+        tv.danh_sach_huy_hieu = [hh.huy_hieu for hh in huy_hieus]
+        top_dai_gia.append(tv)
 
     context = {
         'nhiem_vu_list': nhiem_vu_list,
@@ -469,6 +499,8 @@ def gamification_view(request):
         'cua_hang_items': cua_hang_items,
         'top_dai_gia': top_dai_gia,
         'is_admin': is_admin,
+        'voted_poll_ids': voted_poll_ids, # Danh sách ID khảo sát đã vote
+        'lich_su_xu': lich_su_xu,         # Lịch sử biến động Xu
         'user_role_name': user_role_name,
         'vi_xu': vi_xu,
         'has_vong_quay': True,

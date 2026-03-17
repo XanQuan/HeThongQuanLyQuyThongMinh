@@ -970,11 +970,11 @@
         </div>
     </div>
 
-    {% if is_admin %}
+    
     <div style="position: fixed; bottom: 10px; left: 100px; background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 5px 10px; border-radius: 8px; font-family: monospace; font-size: 10px; color: #10b981; z-index: 9999;">
         <i class="fa-solid fa-bolt"></i> Ping: <span id="ping-time">12</span>ms | API: <span id="api-time">45</span>ms
     </div>
-    {% endif %}
+    
     <script>
         // 1. CẤU HÌNH BIẾN TOÀN CỤC TỪ DJANGO
         const IS_ADMIN = {% if is_admin %}true{% else %}false{% endif %};

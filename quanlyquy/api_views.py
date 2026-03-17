@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 
 # Import đầy đủ các Models
-from .models import GiaoDich, ThanhVien, LoaiQuy, DotThu, MucTieuQuy
+from .models import GiaoDich, ThanhVien, LoaiQuy, DotThu, MucTieuQuy, LichSuGiaoDichXu, KhoDoThanhVien, QuaTang
 from .utils import format_money
 try:
     from google import genai
@@ -458,3 +458,121 @@ def api_nop_quy(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Lỗi Backend: {str(e)}'})
     
+# ==========================================
+# API: VÒNG QUAY GACHA (TRỪ 20 XU)
+# ==========================================
+@csrf_exempt
+@login_required
+@transaction.atomic
+def api_spin_gacha(request):
+    if request.method == 'POST':
+        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+        if not tv: tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+        
+        if not tv or tv.vi_xu < 20:
+            return JsonResponse({'status': 'error', 'message': 'Không đủ Xu! Bạn cần 20 Xu để quay.'})
+
+        # Trừ 20 xu
+        tv.vi_xu -= 20
+        
+        # Tỉ lệ rớt đồ (Gacha Rate)
+        rand = random.randint(1, 100)
+        prize_xu = 0
+        angle = 0
+        message = ""
+
+        if rand <= 50: # 50% xịt
+            prize_xu = 0
+            angle = random.choice([45, 135, 225, 315]) # Góc ô xịt
+            message = "Chúc bạn may mắn lần sau!"
+        elif rand <= 80: # 30% trúng 10 Xu (Lỗ 10 xu)
+            prize_xu = 10
+            angle = random.choice([0, 180]) 
+            message = "Trúng an ủi +10 Xu"
+        elif rand <= 95: # 15% trúng 30 Xu (Lãi 10 xu)
+            prize_xu = 30
+            angle = 90
+            message = "Tuyệt vời! Trúng +30 Xu"
+        else: # 5% Nổ hũ trúng 100 Xu
+            prize_xu = 100
+            angle = 270
+            message = "🎉 JACKPOT! NỔ HŨ +100 XU!"
+
+        # Cộng xu thưởng
+        if prize_xu > 0:
+            tv.vi_xu += prize_xu
+            tv.tong_xu_tich_luy += prize_xu
+        tv.save()
+
+        # Lưu lịch sử
+        LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='TRU_XU', so_xu=20, ly_do=f"Chơi Gacha ({message})")
+        if prize_xu > 0:
+            LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=prize_xu, ly_do=f"Trúng Gacha")
+
+        # angle + 3600 để vòng quay xoay nhiều vòng trước khi dừng
+        return JsonResponse({'status': 'success', 'message': message, 'angle': angle + 3600, 'prize': prize_xu, 'new_balance': tv.vi_xu})
+    return JsonResponse({'status': 'error', 'message': 'Lỗi phương thức'})
+
+# ==========================================
+# API: VOTE KHẢO SÁT (CỘNG 10 XU)
+# ==========================================
+@csrf_exempt
+@login_required
+@transaction.atomic
+def api_submit_vote(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        poll_id = data.get('poll_id')
+        
+        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+        if not tv: tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+        if not tv: return JsonResponse({'status': 'error', 'message': 'Không tìm thấy tài khoản!'})
+
+        # Check xem đã vote chưa
+        da_vote = LichSuGiaoDichXu.objects.filter(thanh_vien=tv, ly_do=f"Vote khảo sát ID:{poll_id}").exists()
+        if da_vote:
+            return JsonResponse({'status': 'error', 'message': 'Bạn đã tham gia bình chọn này rồi!'})
+
+        # Cộng 10 Xu
+        tv.vi_xu += 10
+        tv.tong_xu_tich_luy += 10
+        tv.save()
+
+        # Lưu lịch sử để khóa vote
+        LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=10, ly_do=f"Vote khảo sát ID:{poll_id}")
+        return JsonResponse({'status': 'success', 'message': 'Cảm ơn bạn đã góp ý! +10 Xu'})
+    return JsonResponse({'status': 'error'})
+
+# ==========================================
+# API 3: MUA ĐỒ TRONG SHOP (TRỪ XU)
+# ==========================================
+@csrf_exempt
+@login_required
+@transaction.atomic
+def api_buy_item(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        item_id = data.get('item_id')
+        
+        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
+        if not tv: tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+        
+        item = QuaTang.objects.filter(id=item_id).first()
+        
+        if not item or item.so_luong_kho <= 0:
+            return JsonResponse({'status': 'error', 'message': 'Vật phẩm đã hết hàng!'})
+            
+        if tv.vi_xu < item.gia_xu:
+            return JsonResponse({'status': 'error', 'message': f'Không đủ Xu! Cần {item.gia_xu} Xu.'})
+
+        # Xử lý mua: Trừ Xu, Giảm kho, Thêm vào túi đồ
+        tv.vi_xu -= item.gia_xu
+        tv.save()
+        
+        item.so_luong_kho -= 1
+        item.save()
+        
+        KhoDoThanhVien.objects.create(thanh_vien=tv, qua_tang=item, trang_thai='CHUA_DUNG')
+        LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='TRU_XU', so_xu=item.gia_xu, ly_do=f"Mua {item.ten_qua} tại Shop")
+
+        return JsonResponse({'status': 'success', 'message': f'Mua thành công {item.ten_qua}!'})

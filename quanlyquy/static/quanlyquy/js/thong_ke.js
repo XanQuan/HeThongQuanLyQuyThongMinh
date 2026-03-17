@@ -200,3 +200,53 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+
+// --- 2. CHATBOT AI ---
+window.toggleChatbot = function() {
+    const bot = document.getElementById('chatbot-window');
+    if(!bot) return;
+    if(bot.style.transform === 'scale(1)') {
+        bot.style.transform = 'scale(0)'; bot.style.opacity = '0';
+    } else {
+        bot.style.transform = 'scale(1)'; bot.style.opacity = '1';
+        setTimeout(() => { document.getElementById('chat-input').focus(); }, 100);
+    }
+};
+
+window.sendChatMessage = async function() {
+    const input = document.getElementById('chat-input');
+    const body = document.getElementById('chat-body');
+    if(!input || !body) return;
+    const message = input.value.trim();
+    if (!message) return;
+
+    const userMsg = document.createElement('div');
+    userMsg.style.cssText = "align-self: flex-end; background: var(--theme-primary); color: white; padding: 10px 15px; border-radius: 15px 0 15px 15px; font-size: 13px; max-width: 80%; margin-top: 10px;";
+    userMsg.innerText = message;
+    body.appendChild(userMsg);
+    input.value = '';
+    body.scrollTop = body.scrollHeight;
+
+    const botTyping = document.createElement('div');
+    botTyping.style.cssText = "align-self: flex-start; background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; color: #64748b; font-style: italic; margin-top: 10px;";
+    botTyping.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang phân tích...';
+    body.appendChild(botTyping);
+    body.scrollTop = body.scrollHeight;
+
+    try {
+        const response = await fetch('/api/chatbot/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
+            body: JSON.stringify({ message: message })
+        });
+        const data = await response.json();
+        body.removeChild(botTyping);
+
+        const botMsg = document.createElement('div');
+        botMsg.style.cssText = "align-self: flex-start; background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); line-height: 1.5; margin-top: 10px;";
+        botMsg.innerHTML = data.reply; 
+        body.appendChild(botMsg);
+        body.scrollTop = body.scrollHeight;
+    } catch (error) { if(botTyping.parentNode) body.removeChild(botTyping); }
+};

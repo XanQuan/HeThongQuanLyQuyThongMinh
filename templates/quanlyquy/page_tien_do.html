@@ -326,6 +326,34 @@
     </div>
 </div>
 
+    <div id="chatbot-fab" style="position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary)); color: white; display: flex; justify-content: center; align-items: center; font-size: 28px; cursor: pointer; box-shadow: 0 10px 25px var(--theme-glow); z-index: 10001;" class="hover-scale pulse-dot">
+        <i class="fa-solid fa-robot"></i>
+    </div>
+
+    <div id="chatbot-window" style="position: fixed; bottom: 100px; right: 30px; width: 350px; height: 500px; background: white; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); z-index: 10000; display: flex; flex-direction: column; transform: scale(0); transform-origin: bottom right; transition: 0.3s; opacity: 0; pointer-events: none;">
+        <div style="background: linear-gradient(135deg, var(--theme-primary), var(--theme-secondary)); padding: 20px; color: white; display: flex; justify-content: space-between; align-items: center; border-radius: 24px 24px 0 0;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 35px; height: 35px; background: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; color: var(--theme-primary);"><i class="fa-solid fa-robot"></i></div>
+                <h4 style="margin: 0; color: white; font-weight: 800;">FundBot AI</h4>
+            </div>
+            <i class="fa-solid fa-xmark" style="cursor: pointer; opacity: 0.8;" id="close-bot"></i>
+        </div>
+        <div id="chat-body" style="flex: 1; padding: 20px; background: #f8fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
+            <div style="background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-self: flex-start; color: #334155;">Chào bạn! Bạn cần tra cứu tiến độ đóng quỹ hay nợ nần gì không?</div>
+        </div>
+        <div style="padding: 15px; display: flex; gap: 10px; background: white; border-radius: 0 0 24px 24px; border-top: 1px solid #f1f5f9;">
+            <input type="text" id="chat-input" placeholder="Nhập câu hỏi..." style="flex: 1; padding: 12px 15px; border-radius: 20px; border: 1px solid #e2e8f0; outline: none; font-size: 13px; background: #f8fafc;">
+            <button id="send-chat" style="width: 40px; height: 40px; border-radius: 50%; background: var(--theme-primary); color: white; border: none; cursor: pointer; transition: 0.2s;" class="hover-scale"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <div style="position: fixed; bottom: 10px; left: 100px; background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 5px 10px; border-radius: 8px; font-family: monospace; font-size: 10px; color: #10b981; z-index: 9999;">
+        <i class="fa-solid fa-bolt"></i> Ping: <span id="ping-time">12</span>ms | API: <span id="api-time">45</span>ms
+    </div>
+
+    <div style="position: fixed; bottom: 10px; left: 100px; background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 5px 10px; border-radius: 8px; font-family: monospace; font-size: 10px; color: #10b981; z-index: 9999;">
+        <i class="fa-solid fa-bolt"></i> Ping: <span id="ping-time">12</span>ms | API: <span id="api-time">45</span>ms
+    </div>
 <style>
     @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 </style>
@@ -462,6 +490,57 @@
         const m = document.getElementById(id);
         if(m) m.classList.remove('active'); 
     };
+    document.addEventListener('DOMContentLoaded', function() {
+            const fab = document.getElementById('chatbot-fab');
+            const bot = document.getElementById('chatbot-window');
+            const closeBtn = document.getElementById('close-bot');
+            const sendBtn = document.getElementById('send-chat');
+            const input = document.getElementById('chat-input');
+
+            // 1. Hàm đóng mở (Dùng Event Listener trực tiếp thay cho onclick)
+            function handleToggle() {
+                const isHidden = bot.style.opacity === "0" || bot.style.opacity === "";
+                if (isHidden) {
+                    bot.style.transform = 'scale(1)';
+                    bot.style.opacity = '1';
+                    bot.style.pointerEvents = 'auto';
+                    input.focus();
+                } else {
+                    bot.style.transform = 'scale(0)';
+                    bot.style.opacity = '0';
+                    bot.style.pointerEvents = 'none';
+                }
+            }
+
+            fab.addEventListener('click', handleToggle);
+            closeBtn.addEventListener('click', handleToggle);
+
+            // 2. Hàm gửi tin nhắn
+            async function sendMessage() {
+                const message = input.value.trim();
+                if (!message) return;
+                
+                const body = document.getElementById('chat-body');
+                const userMsg = document.createElement('div');
+                userMsg.style.cssText = "align-self: flex-end; background: var(--theme-primary); color: white; padding: 10px 15px; border-radius: 15px 0 15px 15px; font-size: 13px; max-width: 80%; margin-top: 10px;";
+                userMsg.innerText = message;
+                body.appendChild(userMsg);
+                input.value = '';
+                body.scrollTop = body.scrollHeight;
+
+                // Giả lập bot trả lời
+                setTimeout(() => {
+                    const botMsg = document.createElement('div');
+                    botMsg.style.cssText = "align-self: flex-start; background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 10px; color: #334155;";
+                    botMsg.innerText = "FundBot đang kiểm tra dữ liệu, sếp đợi tí nha... 🚀";
+                    body.appendChild(botMsg);
+                    body.scrollTop = body.scrollHeight;
+                }, 800);
+            }
+
+            sendBtn.addEventListener('click', sendMessage);
+            input.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+        });
 </script>
 </body> 
 </html>

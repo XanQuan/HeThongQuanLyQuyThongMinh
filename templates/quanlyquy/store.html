@@ -6,7 +6,7 @@
     <link rel="shortcut icon" type="image/x-icon" href="{% static 'quanlyquy/logo.ico' %}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cửa Hàng Đặc Quyền | FundFlow</title>
+    <title>Cửa Hàng Đặc Quyền | FundSmart</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -90,7 +90,7 @@
                 </div>
                 <div class="brand-info">
                     <div class="brand-top" style="display: flex; align-items: center;">
-                        <span class="brand-name" style="font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 0.5px;">FundFlow</span>
+                        <span class="brand-name" style="font-size: 22px; font-weight: 900; color: #fff; letter-spacing: 0.5px;">FundSmart</span>
                         <span class="badge-pro" style="background: linear-gradient(90deg, #f59e0b, #ef4444); color: white; padding: 2px 6px; border-radius: 6px; font-size: 9px; font-weight: 900; margin-left: 8px;">PRO</span>
                     </div>
                     <span class="brand-slogan" style="font-size: 11px; color: var(--text-light); font-weight: 600;">Minh bạch tài chính lớp</span>
@@ -300,11 +300,11 @@
         </div>
     </div>
 
-    {% if is_admin %}
+    
     <div style="position: fixed; bottom: 10px; left: 100px; background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 5px 10px; border-radius: 8px; font-family: monospace; font-size: 10px; color: #10b981; z-index: 9999;">
         <i class="fa-solid fa-bolt"></i> Ping: <span id="ping-time">12</span>ms | API: <span id="api-time">45</span>ms
     </div>
-    {% endif %}
+    
 
     <script>
         const IS_ADMIN = {{ is_admin|lower }};
