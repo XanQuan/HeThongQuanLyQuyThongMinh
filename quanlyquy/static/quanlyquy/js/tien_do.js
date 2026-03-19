@@ -118,63 +118,59 @@ window.runMassRemind = function() {
     });
 };
 
+// 1. Hàm mở modal hỏi sếp
 window.clearNotifications = function(btn) {
-    // 1. Mở modal xác nhận
-    const confirmModal = document.getElementById('customConfirmModal');
-    if(confirmModal) confirmModal.style.display = 'flex';
+    // Lưu lại cái nút Dọn Rác để tí nữa gắn spinner vào nó
+    window.lastClickedClearBtn = btn;
+    const modal = document.getElementById('customConfirmModal');
+    if(modal) modal.style.display = 'flex';
+};
 
-    // 2. Xử lý khi bấm nút "XÁC NHẬN" trong modal
-    const okBtn = document.getElementById('executeClearBtn');
-    if(!okBtn) return;
+// 2. Hàm thực thi xóa thật sự (Bản dứt điểm "quay quài")
+window.executeDeleteNotifications = function() {
+    const btn = window.lastClickedClearBtn;
+    const modal = document.getElementById('customConfirmModal');
+    if(modal) modal.style.display = 'none';
+    if(!btn) return;
 
-    okBtn.onclick = function() {
-        confirmModal.style.display = 'none';
-        
-        // Bắt đầu quay spinner
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-        btn.style.pointerEvents = 'none'; // Khóa nút không cho bấm thêm
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.style.pointerEvents = 'none';
 
-        fetch(window.FUND_CONFIG.clearUrl, {
-            method: 'POST',
-            headers: { 'X-CSRFToken': window.FUND_CONFIG.csrfToken }
-        })
-        .then(res => {
-            if (!res.ok) throw new Error('Server báo lỗi ' + res.status);
-            return res.json();
-        })
-        .then(data => {
-            if(data.status === 'success') {
-                // Xóa chấm đỏ báo số trên chuông
-                const bellIcon = document.querySelector('.fa-bell');
-                const badge = bellIcon ? bellIcon.parentElement.querySelector('span') : null;
-                if(badge) badge.style.display = 'none';
-                
-                // Cập nhật hòm thư trống
-                const container = document.getElementById('notif-list-container');
-                if(container) {
-                    container.innerHTML = `
-                        <div style="text-align: center; padding: 60px 0;">
-                            <i class="fa-solid fa-mailbox" style="font-size: 30px; color: rgba(255,255,255,0.1); margin-bottom: 20px;"></i>
-                            <p style="font-weight: 800; color: white;">Hộp thư trống</p>
-                        </div>`;
-                }
-                showToast("Đã dọn sạch hòm thư!", "success");
-            } else {
-                showToast("Lỗi: " + data.message, "error");
+    // Gọi API xóa bưu tá
+    fetch('/api/clear-notifications/', {
+        method: 'POST',
+        headers: { 
+            'X-CSRFToken': getCookie('csrftoken'), // Lấy token trực tiếp từ cookie
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(res => {
+        if (!res.ok) throw new Error('Lỗi server');
+        return res.json();
+    })
+    .then(data => {
+        if(data.status === 'success') {
+            // Xóa badge trên chuông
+            const badge = document.querySelector('.fa-bell + span');
+            if(badge) badge.style.display = 'none';
+            
+            // Cập nhật giao diện trống
+            const container = document.getElementById('notif-list-container');
+            if(container) {
+                container.innerHTML = `<div style="text-align: center; padding: 50px 0;"><i class="fa-solid fa-mailbox" style="font-size: 30px; opacity: 0.1; margin-bottom: 20px;"></i><p style="font-weight: 800; color: white;">Hộp thư trống</p></div>`;
             }
-        })
-        .catch(err => {
-            // NẾU LỖI THÌ DỪNG QUAY VÀ BÁO LỖI NGAY
-            console.error(err);
-            showToast("Không thể dọn rác. Kiểm tra lại đường dẫn (URL)!", "error");
-        })
-        .finally(() => {
-            // Dù thành công hay thất bại cũng phải trả lại nút như cũ
-            btn.innerHTML = originalText;
-            btn.style.pointerEvents = 'auto';
-        });
-    };
+            showToast("Hòm thư đã sạch bóng!", "success");
+        }
+    })
+    .catch(err => {
+        showToast("Lỗi: Không thể kết nối máy chủ!", "error");
+    })
+    .finally(() => {
+        // ✅ QUAN TRỌNG: Dù thành công hay lỗi cũng phải dừng quay
+        btn.innerHTML = originalHtml;
+        btn.style.pointerEvents = 'auto';
+    });
 };
 
 // 5. GÓP QUỸ HỘ (NỘP HỘ)

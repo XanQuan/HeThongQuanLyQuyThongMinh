@@ -352,16 +352,17 @@
     </div>
 </div>
 
-<div id="customConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 1000000; justify-content: center; align-items: center;">
-    <div style="background: #0f172a; border: 1px solid #ef4444; border-radius: 24px; padding: 35px; width: 380px; text-align: center; box-shadow: 0 0 50px rgba(239, 68, 68, 0.2); animation: slideUp 0.3s ease-out;">
-        <div style="width: 70px; height: 70px; background: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; border: 1px solid rgba(239, 68, 68, 0.2);">
-            <i class="fa-solid fa-trash-can" style="font-size: 30px; color: #ef4444;"></i>
+<div id="customConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px); z-index: 1000000; justify-content: center; align-items: center;">
+    <div style="width: 380px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; text-align: center;">
+        <div style="width: 60px; height: 60px; background: rgba(239, 68, 68, 0.1); border-radius: 50%; display: flex; justify-content: center; align-items: center; margin: 0 auto 20px; border: 1px solid rgba(239, 68, 68, 0.2);">
+            <i class="fa-solid fa-trash-can" style="color: #ef4444; font-size: 24px;"></i>
         </div>
-        <h3 style="color: white; margin: 0 0 10px 0; font-weight: 900;">DỌN SẠCH HÒM THƯ?</h3>
-        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 30px; line-height: 1.5;">Hành động này sẽ xóa vĩnh viễn tất cả thông báo. Sếp chắc chắn chứ?</p>
+        <h3 style="margin: 0 0 10px 0; color: white; font-size: 18px; font-weight: 800;">DỌN SẠCH HÒM THƯ?</h3>
+        <p style="margin: 0 0 25px 0; color: #94a3b8; font-size: 13px;">Hệ thống sẽ xóa vĩnh viễn toàn bộ thông báo bưu tá.</p>
         <div style="display: flex; gap: 12px;">
-            <button onclick="document.getElementById('customConfirmModal').style.display='none'" style="flex: 1; padding: 14px; border-radius: 12px; background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; font-weight: 700;">HỦY LỆNH</button>
-            <button id="executeClearBtn" style="flex: 1; padding: 14px; border-radius: 12px; background: #ef4444; color: white; border: none; font-weight: 900; cursor: pointer; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);">XÁC NHẬN</button>
+            <button onclick="document.getElementById('customConfirmModal').style.display='none'" style="flex: 1; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">HỦY LỆNH</button>
+            
+            <button id="confirmClearOkBtn" onclick="executeDeleteNotifications()" style="flex: 1; padding: 12px; border-radius: 12px; background: #ef4444; color: white; border: none; font-weight: 800; cursor: pointer;">XÁC NHẬN</button>
         </div>
     </div>
 </div>
