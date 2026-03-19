@@ -21,3 +21,4 @@
 .chart-filter:hover { border-color: var(--theme-primary); background: rgba(0, 0, 0, 0.5); }
 .chart-body { flex: 1; position: relative; min-height: 250px; width: 100%; margin-top: 10px;}
 .col-span-2 { grid-column: span 2; } .col-span-3 { grid-column: span 3; }
+

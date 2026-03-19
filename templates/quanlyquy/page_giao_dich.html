@@ -309,7 +309,7 @@
             <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="toggleChatbot()"></i>
         </div>
         <div id="chat-body" style="flex: 1; padding: 20px; background: #f8fafc; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
-            <div style="background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-self: flex-start;">Chào bạn! Bạn cần tra cứu số dư hay thông tin nợ nào?</div>
+            <div style="background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); align-self: flex-start;">Chào bạn! Tôi là FundBot, trợ lý ảo của FundSmart. Tôi có thể giúp gì cho bạn hôm nay? Hãy hỏi tôi bất kỳ thắc mắc nào liên quan đến cần tra cứu số dư hay thông tin nợ nhé!</div>
         </div>
         <div style="padding: 15px; display: flex; gap: 10px; background: white; border-radius: 0 0 24px 24px; border-top: 1px solid #f1f5f9;">
             <input type="text" id="chat-input" placeholder="Nhập câu hỏi..." onkeypress="if(event.key === 'Enter') sendChatMessage()" style="flex: 1; padding: 10px 15px; border-radius: 20px; border: 1px solid #e2e8f0; outline: none; font-size: 13px;">
@@ -404,5 +404,6 @@
             }
         }
     </script>
+    {% include 'quanlyquy/quest_popup.html' %}
 </body> 
 </html>

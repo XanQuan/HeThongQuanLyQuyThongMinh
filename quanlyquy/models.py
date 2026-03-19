@@ -313,3 +313,23 @@ class HuyHieuThanhVien(BaseModel):
     class Meta: 
         verbose_name = "Cấp Phát Huy Hiệu"
         verbose_name_plural = "Lịch Sử Cấp Huy Hiệu"
+
+class ThongBaoBuuTa(BaseModel):
+    class Type(models.TextChoices):
+        SYSTEM = 'SYSTEM', '⚡ Hệ thống'
+        REMIND = 'REMIND', '📢 Nhắc nợ'
+        FINANCE = 'FINANCE', '💰 Tài chính'
+
+    nguoi_nhan = models.ForeignKey(User, on_delete=models.CASCADE, related_name='thong_bao_receivers', verbose_name="Người nhận")
+    tieu_de = models.CharField(max_length=255, verbose_name="Tiêu đề")
+    noi_dung = models.TextField(verbose_name="Nội dung chi tiết")
+    is_read = models.BooleanField(default=False, verbose_name="Đã đọc?")
+    link_url = models.CharField(max_length=255, blank=True, null=True, verbose_name="Link liên kết")
+    loai = models.CharField(max_length=20, choices=Type.choices, default=Type.SYSTEM, verbose_name="Phân loại")
+
+    def __str__(self):
+        return f"[{self.get_loai_display()}] - {self.tieu_de}"
+
+    class Meta:
+        verbose_name = "Bưu tá Hệ thống"
+        verbose_name_plural = "Bưu tá Hệ thống"

@@ -1,7 +1,18 @@
 /* ======================================================
    CSS RIÊNG CHO PHÂN HỆ GAMIFICATION (TRẠM GIẢI TRÍ)
    ====================================================== */
+/* TĂNG PADDING CHO CÁC Ô TRÊN BẢNG */
+    #gacha-details-popup .table-gacha th,
+    #gacha-details-popup .table-gacha td {
+        padding: 15px 20px; /* <--- Số này càng lớn thì ô càng bự (trên-dưới, trái-phải) */
+        font-size: 16px;    /* Tăng cỡ chữ lên tí cho bự */
+    }
 
+    /* LÀM CHO CHỮ BỰ HƠN KHI HOVER */
+    #gacha-details-popup .table-gacha tbody tr:hover {
+        font-weight: 700;
+        background: rgba(255,255,255,0.05);
+    }
 .game-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 25px; margin-top: 25px; }
 .sub-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
 
@@ -157,3 +168,4 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.5); transition: 0.2s;
 }
 .badge-icon:hover { transform: scale(1.2); border-color: #fbbf24; color: #fbbf24; }
+

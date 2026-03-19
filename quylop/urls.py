@@ -33,6 +33,8 @@ urlpatterns = [
     
     # API chuyên dụng cho QA Chaos Lab
     path('api/chaos/', views.api_chaos_action, name='api_chaos_action'),
+    path('api/mass-remind/', views.api_mass_remind_debt, name='api_mass_remind_debt'),
+    path('api/clear-notifications/', views.api_clear_notifications, name='api_clear_notifications'),
     
     # API Webhook Nhận tiền tự động (Bank/SePay)
     path('api/webhook/sepay/', views.sepay_webhook, name='sepay_webhook'),

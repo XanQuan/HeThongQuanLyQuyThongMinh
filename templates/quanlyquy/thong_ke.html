@@ -63,40 +63,40 @@
             </div>
 
     <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 15px 0 10px 10px;">Core Finance</div>
-    
-    <a href="/" class="sidebar-link {% if request.path == '/' %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-        <i class="fa-solid fa-border-all" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tổng Quan</span>
-        <div class="dot-indicator {% if request.path == '/' %}pulse-dot{% endif %}" style="background: #a855f7; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
-    </a>
-    
-    <a href="/giao-dich/" class="sidebar-link {% if '/giao-dich/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-        <i class="fa-solid fa-money-check-dollar" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tra Cứu Giao Dịch</span>
-        <div class="dot-indicator {% if '/giao-dich/' in request.path %}pulse-dot{% endif %}" style="background: #0F969C; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
-    </a>
+            
+            <a href="/" class="sidebar-link {% if request.path == '/' %}active{% endif %}" style="color: #a855f7;">
+                <i class="fa-solid fa-border-all" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tổng Quan</span>
+                <div class="dot-indicator {% if request.path == '/' %}pulse-dot{% endif %}" style="background: #a855f7;"></div> 
+            </a>
+            
+            <a href="/giao-dich/" class="sidebar-link {% if '/giao-dich/' in request.path %}active{% endif %}" style="color: #0F969C;">
+                <i class="fa-solid fa-money-check-dollar" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tra Cứu Giao Dịch</span>
+                <div class="dot-indicator {% if '/giao-dich/' in request.path %}pulse-dot{% endif %}" style="background: #0F969C;"></div>
+            </a>
 
-    <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px 10px;">Planning & Stats</div>
-    
-    <a href="/tien-do/" class="sidebar-link {% if '/tien-do/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-        <i class="fa-solid fa-calendar-days" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tiến Độ Đợt Thu</span>
-        <div class="dot-indicator {% if '/tien-do/' in request.path %}pulse-dot{% endif %}" style="background: #46DFB1; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
-    </a>
-    
-    <a href="/thong-ke/" class="sidebar-link {% if '/thong-ke/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-        <i class="fa-solid fa-chart-pie" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Phân Tích Dòng Tiền</span>
-        <div class="dot-indicator {% if '/thong-ke/' in request.path %}pulse-dot{% endif %}" style="background: #5483B3; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
-    </a>
+            <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px 10px;">Planning & Stats</div>
+            
+            <a href="/tien-do/" class="sidebar-link {% if '/tien-do/' in request.path %}active{% endif %}" style="color: #46DFB1;">
+                <i class="fa-solid fa-calendar-days" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Tiến Độ Đợt Thu</span>
+                <div class="dot-indicator {% if '/tien-do/' in request.path %}pulse-dot{% endif %}" style="background: #46DFB1;"></div>
+            </a>
+            
+            <a href="/thong-ke/" class="sidebar-link {% if '/thong-ke/' in request.path %}active{% endif %}" style="color: #5483B3;">
+                <i class="fa-solid fa-chart-pie" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Phân Tích Dòng Tiền</span>
+                <div class="dot-indicator {% if '/thong-ke/' in request.path %}pulse-dot{% endif %}" style="background: #5483B3;"></div>
+            </a>
 
-    <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px 10px;">Gamification</div>
-    
-    <a href="/gamification/" class="sidebar-link {% if '/gamification/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-        <i class="fa-solid fa-gamepad" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Khu Vui Chơi</span>
-        <div class="dot-indicator {% if '/gamification/' in request.path %}pulse-dot{% endif %}" style="background: #D3A376; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
-    </a>
-    
-    <a href="/cua-hang/" class="sidebar-link {% if '/cua-hang/' in request.path %}active{% endif %}" style="display: flex; align-items: center; gap: 15px; padding: 12px 15px; border-radius: 16px; color: var(--text-light); text-decoration: none; font-weight: 700; transition: 0.3s;">
-         <i class="fa-solid fa-store" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Cửa Hàng Đổi Quà</span>
-         <div class="dot-indicator {% if '/cua-hang/' in request.path %}pulse-dot{% endif %}" style="background: #F6BCBA; width: 8px; height: 8px; border-radius: 50%; margin-left: auto;"></div>
-    </a>
+            <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 20px 0 10px 10px;">Gamification</div>
+            
+            <a href="/gamification/" class="sidebar-link {% if '/gamification/' in request.path %}active{% endif %}" style="color: #D3A376;">
+                <i class="fa-solid fa-gamepad" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Khu Vui Chơi</span>
+                <div class="dot-indicator {% if '/gamification/' in request.path %}pulse-dot{% endif %}" style="background: #D3A376;"></div>
+            </a>
+            
+            <a href="/cua-hang/" class="sidebar-link {% if '/cua-hang/' in request.path %}active{% endif %}" style="color: #F6BCBA;">
+                <i class="fa-solid fa-store" style="font-size: 18px; width: 24px; text-align: center;"></i> <span>Cửa Hàng Đổi Quà</span>
+                <div class="dot-indicator {% if '/cua-hang/' in request.path %}pulse-dot{% endif %}" style="background: #F6BCBA;"></div>
+            </a>
 
     <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.05);">
         <div class="nav-group-label" style="font-size: 11px; color: var(--text-light); font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px 10px;">System & Tools</div>
@@ -245,7 +245,7 @@
 
         <div id="chat-body" style="flex: 1; padding: 20px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 15px;">
             <div style="align-self: flex-start; background: white; padding: 12px 16px; border-radius: 0 16px 16px 16px; font-size: 13px; color: #334155; box-shadow: 0 2px 5px rgba(0,0,0,0.02); max-width: 80%; line-height: 1.5;">
-                Chào bạn 👋! Mình là Trợ lý AI của quỹ lớp. Bạn muốn hỏi gì nào? (Gợi ý: "Quỹ còn bao nhiêu?" hoặc "Tôi có nợ không?")
+                Chào bạn! Tôi là FundBot, trợ lý ảo của FundSmart Pro. Tôi có thể giúp bạn phân tích dữ liệu tài chính, giải thích các biểu đồ, hoặc trả lời bất kỳ câu hỏi nào liên quan đến quỹ lớp. Hãy nhập câu hỏi của bạn vào ô bên dưới nhé!
             </div>
         </div>
 
@@ -278,7 +278,7 @@
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
     </script>
-
     <script src="{% static 'quanlyquy/js/thong_ke.js' %}"></script>
+    {% include 'quanlyquy/quest_popup.html' %}
 </body>
 </html>

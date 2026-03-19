@@ -94,52 +94,214 @@ window.sendChatMessage = async function() {
     } catch (error) { if(botTyping.parentNode) body.removeChild(botTyping); }
 };
 
-// --- NGHIỆP VỤ GAME ---
-let currentRotation = 0;
-window.playGacha = function() {
-    const btn = document.getElementById('spinBtn');
-    const wheel = document.getElementById('gachaWheel');
-    if (!wheel) return;
+// ==========================================
+// LOGIC VÒNG QUAY CASINO PRO 
+// ==========================================
+let bigWheelDrawn = false;
+let bigGachaRotation = 0;
+let isBigSpinning = false;
+let ledInterval;
+let idleAnimationId;
 
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ĐANG XỬ LÝ...';
+// HÀM MỚI: TỰ ĐỘNG XOAY CHỜ CHẦM CHẬM
+function startIdleSpin() {
+    if (isBigSpinning) return; // Nếu đang quay thật thì dừng hàm này
+    const wheel = document.getElementById('wheel-inner');
+    if (wheel) {
+        wheel.style.transition = 'none'; // Tắt hiệu ứng mượt để xoay từng frame
+        bigGachaRotation += 0.25; // Tốc độ xoay (Có thể tăng/giảm số này)
+        wheel.style.transform = `rotate(${bigGachaRotation}deg)`;
+        idleAnimationId = requestAnimationFrame(startIdleSpin);
     }
+}
+
+window.initBigWheel = function() {
+    if (bigWheelDrawn) return; 
+    const wheel = document.getElementById('wheel-inner');
+    const ledContainer = document.getElementById('led-container');
+    if(!wheel || !ledContainer) return;
+
+   const items = [
+        { text: "XỊT", color: "#ef4444", icon: "fa-ghost" },           // Đỏ (rgb 239, 68, 68)
+        { text: "10 XU", color: "#f97316", icon: "fa-coins" },         // Cam (rgb 249, 115, 22)
+        { text: "20 XU", color: "#f59e0b", icon: "fa-money-bill-wave" },// Vàng Amber (rgb 245, 158, 11)
+        { text: "XỊT", color: "#ef4444", icon: "fa-ghost" },           // Đỏ
+        { text: "30 XU", color: "#10b981", icon: "fa-money-bill" },    // Xanh lục (rgb 16, 185, 129)
+        { text: "50 XU", color: "#3b82f6", icon: "fa-money-bill-alt" },// Xanh dương (rgb 59, 130, 246)
+        { text: "ĐỘC ĐẮC", color: "#991b1b", icon: "fa-crown", isJackpot: true }, // Đỏ sẫm (Trộn từ Gradient đỏ/vàng của Jackpot để nổi bật chữ vàng)
+        { text: "10 XU", color: "#f97316", icon: "fa-coins" },         // Cam
+        { text: "XỊT", color: "#ef4444", icon: "fa-ghost" },           // Đỏ
+        { text: "20 XU", color: "#f59e0b", icon: "fa-money-bill-wave" },// Vàng Amber
+        { text: "QUÀ TẶNG", color: "#a855f7", icon: "fa-gift" },       // Tím Voucher (rgb 168, 85, 247)
+        { text: "30 XU", color: "#10b981", icon: "fa-money-bill" }     // Xanh lục
+    ];
+
+    const degPerItem = 360 / items.length;
+    let conicString = [];
+
+    items.forEach((item, i) => {
+        const startDeg = i * degPerItem;
+        const endDeg = (i + 1) * degPerItem;
+        conicString.push(`${item.color} ${startDeg}deg ${endDeg}deg`);
+
+        const span = document.createElement('div');
+        span.style.cssText = `position: absolute; width: 50%; height: 30px; top: 50%; left: 50%; transform-origin: 0 50%; display: flex; justify-content: flex-end; align-items: center; padding-right: 30px; color: white; font-weight: 900; gap: 8px; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 3px 5px rgba(0,0,0,0.8); z-index: 2; box-sizing: border-box;`;
+        
+        const textAngle = startDeg + (degPerItem / 2) - 90; 
+        span.style.transform = `translateY(-50%) rotate(${textAngle}deg)`;
+        span.style.fontSize = item.isJackpot ? '14px' : '17px'; 
+        span.innerHTML = `<i class="fa-solid ${item.icon}" style="color: #ffd700; font-size: 15px; filter: drop-shadow(1px 1px 1px #000);"></i> ${item.text}`;
+
+        const borderLine = document.createElement('div');
+        borderLine.style.cssText = `position: absolute; width: 50%; height: 3px; background: rgba(255,255,255,0.4); top: 50%; left: 50%; transform-origin: 0 50%; z-index: 3; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
+        borderLine.style.transform = `translateY(-50%) rotate(${startDeg}deg)`;
+        
+        wheel.appendChild(borderLine);
+        wheel.appendChild(span);
+    });
+
+    wheel.style.background = `conic-gradient(${conicString.join(', ')})`;
+
+    // VẼ ĐÈN LED CHẠY VIỀN
+    const totalLeds = 40; 
+    const degreePerLed = 360 / totalLeds;
+    for (let i = 0; i < totalLeds; i++) {
+        const led = document.createElement('div');
+        led.className = 'gacha-led-dot';
+        led.style.transform = `translate(-50%, -50%) rotate(${degreePerLed * i}deg) translateY(-235px)`; 
+        ledContainer.appendChild(led);
+    }
+    
+    let ledIndex = 0;
+    if(ledInterval) clearInterval(ledInterval);
+    ledInterval = setInterval(() => {
+        const leds = document.querySelectorAll('.gacha-led-dot');
+        if(leds.length === 0) return;
+        leds.forEach(l => l.classList.remove('active'));
+        for (let i = 0; i < 5; i++) {
+            const index = (ledIndex + i * 8) % leds.length;
+            leds[index].classList.add('active');
+        }
+        ledIndex = (ledIndex + 1) % leds.length;
+    }, 100);
+    
+    bigWheelDrawn = true;
+    
+    // KÍCH HOẠT XOAY CHỜ NGAY KHI VẼ XONG
+    startIdleSpin();
+};
+
+// HÀM QUAY GACHA VÀ XỬ LÝ LỖI
+window.executeBigSpin = function() {
+    if (isBigSpinning) return;
+    
+    const btn = document.getElementById('spin-button-pro'); 
+    const wheel = document.getElementById('wheel-inner');
+    const popup = document.getElementById('gacha-result-popup');
+    const title = document.getElementById('result-title');
+    const msg = document.getElementById('result-msg');
+    const icon = document.getElementById('result-icon');
+    let actionBtn = null;
+    if(popup) actionBtn = popup.querySelector('button');
+
+    if (!wheel || !btn) return;
+
+    // BẮT ĐẦU QUAY (Dừng xoay nhàn rỗi)
+    isBigSpinning = true;
+    cancelAnimationFrame(idleAnimationId);
+
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="font-size: 32px;"></i>';
+    wheel.classList.add('gacha-spinning-effect');
 
     fetch('/api/gacha/spin/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') }
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(async res => {
+        const data = await res.json();
+        
+        // NẾU PYTHON BÁO LỖI (Hết xu, lỗi DB...)
         if (data.status === 'error') {
-            showToast(data.message, 'error');
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = 'QUAY NGAY <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 6px; font-size: 10px;">-20 XU</span>';
+            isBigSpinning = false;
+            btn.innerHTML = '<span id="spin-text" style="font-size: 20px;">QUAY<br><span style="font-size: 11px; color: #ffd700;">-20 XU</span></span>';
+            wheel.classList.remove('gacha-spinning-effect');
+            startIdleSpin(); // Bật lại xoay rù rù
+            
+            // Hiện Popup Đỏ Báo Lỗi Trực Quan (Không dùng alert gây kẹt)
+            if(popup && title && msg && icon && actionBtn) {
+                icon.innerText = "🚨";
+                title.innerText = "KHÔNG THỂ QUAY!";
+                title.style.color = "#ef4444";
+                popup.style.borderColor = "#ef4444";
+                popup.style.boxShadow = "0 0 50px rgba(239, 68, 68, 0.5)";
+                msg.innerHTML = `<b style="color: #ef4444;">${data.message}</b><br><span style="font-size: 12px; color: #94a3b8;">Cày thêm nhiệm vụ hoặc báo Admin nhé!</span>`;
+                actionBtn.innerText = "ĐÓNG";
+                actionBtn.style.background = "#ef4444";
+                actionBtn.onclick = function() { popup.classList.remove('show'); };
+                popup.classList.add('show');
             }
             return;
         }
 
-        wheel.style.animation = 'none'; 
-        currentRotation += data.angle; 
-        wheel.style.transition = 'transform 4s cubic-bezier(0.1, 0.7, 0.1, 1)';
-        wheel.style.transform = `rotate(${currentRotation}deg)`;
+        // NẾU THÀNH CÔNG: QUAY MƯỢT
+        let currentMod = bigGachaRotation % 360;
+        let spinTo = data.angle - currentMod;
+        if (spinTo < 0) spinTo += 360; 
+        bigGachaRotation += spinTo + 3600; 
+        
+        void wheel.offsetWidth; // Refresh CSS
+        wheel.style.transition = 'transform 6s cubic-bezier(0.1, 0.7, 0.1, 1)';
+        wheel.style.transform = `rotate(${bigGachaRotation}deg)`; 
 
+        // KHI DỪNG LẠI SAU 6 GIÂY
         setTimeout(() => {
-            showToast(data.message, data.prize > 0 ? 'success' : 'error');
-            setTimeout(() => { location.reload(); }, 2000);
-        }, 4000);
+            isBigSpinning = false;
+            wheel.classList.remove('gacha-spinning-effect');
+            btn.innerHTML = '<span id="spin-text" style="font-size: 20px;">QUAY<br><span style="font-size: 11px; color: #ffd700;">-20 XU</span></span>';
+            
+            // Cập nhật số dư trực tiếp trên Web
+            const balanceEl = document.querySelector('h2[style*="text-shadow"]');
+            if(balanceEl && data.new_balance !== undefined) {
+                balanceEl.innerHTML = `${data.new_balance} <span style="font-size: 12px; color: #fbbf24;">XU</span>`;
+            }
+
+            if(popup && title && msg && icon && actionBtn) {
+                popup.style.borderColor = "#ffd700";
+                popup.style.boxShadow = "0 0 50px rgba(251, 191, 36, 0.5)";
+                actionBtn.innerText = "NHẬN THƯỞNG";
+                actionBtn.style.background = "linear-gradient(90deg, #f59e0b, #ef4444)";
+                actionBtn.onclick = function() { location.reload(); };
+
+                if (data.prize_type === "VOUCHER") {
+                    title.innerText = "🎁 TRÚNG QUÀ THẬT!";
+                    title.style.color = "#4ade80";
+                    msg.innerHTML = `Sếp nhận được: <b style="color: #ffd700; font-size: 18px;">${data.voucher_name}</b><br>Đã cất vào kho đồ!`;
+                    icon.innerText = "📦";
+                } else {
+                    title.innerText = data.prize > 0 ? "THẮNG LỚN!" : "XUI QUÁ!";
+                    title.style.color = "#ffd700";
+                    msg.innerText = data.message;
+                    icon.innerText = data.prize > 0 ? "💰" : "👻";
+                }
+                popup.classList.add('show');
+            }
+            if (typeof confetti === 'function' && (data.prize > 0 || data.prize_type === "VOUCHER")) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 3000 });
+            }
+        }, 6100);
     })
     .catch(err => {
-        showToast('Lỗi kết nối mạng!', 'error');
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = 'QUAY NGAY <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 6px; font-size: 10px;">-20 XU</span>';
-        }
+        // Lỗi rớt mạng hoặc sập hẳn Server
+        console.error(err);
+        isBigSpinning = false;
+        btn.innerHTML = '<span id="spin-text" style="font-size: 20px;">QUAY<br><span style="font-size: 11px; color: #ffd700;">-20 XU</span></span>';
+        wheel.classList.remove('gacha-spinning-effect');
+        startIdleSpin();
+        alert('Server không phản hồi! Sếp F5 lại web nha.');
     });
 };
 
+// --- CÁC TÍNH NĂNG KHÁC ---
 window.submitVote = function(pollId) {
     fetch('/api/gacha/vote/', {
         method: 'POST',
@@ -155,7 +317,7 @@ window.submitVote = function(pollId) {
             showToast(data.message, 'error');
         }
     })
-    .catch(err => showToast('Lỗi kết nối mạng!', 'error'));
+    .catch(err => showToast('Lỗi mạng!', 'error'));
 };
 
 window.toggleQuests = function() {
@@ -178,4 +340,27 @@ window.toggleQuests = function() {
         btn.style.borderColor = 'rgba(56, 189, 248, 0.3)';
         document.getElementById('quest-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+};
+
+// Gọi vẽ vòng quay khi load web
+document.addEventListener("DOMContentLoaded", function() {
+    window.initBigWheel();
+});
+
+
+window.handleQuestGo = function(questName) {
+    const name = questName.toLowerCase();
+    
+    if (name.includes("phân tích")) window.location.href = "/thong-ke/";
+    else if (name.includes("điểm danh")) window.location.href = "/";
+    else if (name.includes("mẫn cán")) window.location.href = "/giao-dich/";
+    else if (name.includes("nợ nần") || name.includes("gương mẫu") || name.includes("bao nuôi")) window.location.href = "/tien-do/";
+    else if (name.includes("shopping")) window.location.href = "/cua-hang/";
+    else if (name.includes("gacha") || name.includes("cử tri")) {
+        document.getElementById('quest-container').scrollIntoView({behavior: "smooth"});
+        showToast('Nhiệm vụ này làm ngay tại trang Giải Trí sếp nhé!', 'info');
+    }
+    else if (name.includes("bot")) {
+        if(typeof window.toggleChatbot === 'function') window.toggleChatbot();
+    } 
 };

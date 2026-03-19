@@ -1,6 +1,8 @@
 import sys
 import io
 import json
+import traceback
+from .views import check_and_reward_quest
 from datetime import timedelta
 
 from django.contrib.auth.hashers import check_password
@@ -15,7 +17,7 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 
 # Import đầy đủ các Models
-from .models import GiaoDich, ThanhVien, LoaiQuy, DotThu, MucTieuQuy, LichSuGiaoDichXu, KhoDoThanhVien, QuaTang
+from .models import GiaoDich, ThanhVien, LoaiQuy, DotThu, MucTieuQuy, LichSuGiaoDichXu, KhoDoThanhVien, QuaTang, HuyHieu, HuyHieuThanhVien
 from .utils import format_money
 try:
     from google import genai
@@ -63,6 +65,7 @@ def api_nop_quy(request):
             is_an_danh=data.get('is_an_danh', False),
             created_by=str(request.user.id)
         )
+        check_and_reward_quest(request, 'Công dân gương mẫu')
 
         # CỘNG TIỀN VÀO MỤC TIÊU
         if muc_tieu_obj:
@@ -122,12 +125,11 @@ def api_nop_quy_ho(request):
     try:
         data = json.loads(request.body)
         
-        # ID của người ĐƯỢC nộp hộ (lấy từ modal Tiến Độ)
+        # 1. Tìm người ĐƯỢC nộp hộ (Receiver)
         thanh_vien_id = data.get('tv_id') or data.get('thanh_vien_id')
-        tv = ThanhVien.objects.get(id=thanh_vien_id)
+        tv_duoc_nop = ThanhVien.objects.get(id=thanh_vien_id)
         
         so_tien = clean_amount(data.get('so_tien'))
-        
         dot_thu_id = data.get('dot_thu_id')
         dot_thu_obj = DotThu.objects.filter(id=dot_thu_id).first() if dot_thu_id else None
         
@@ -135,53 +137,36 @@ def api_nop_quy_ho(request):
         if not quy:
             return JsonResponse({'status': 'error', 'message': 'Hệ thống chưa có Quỹ!'})
 
-        # LƯU GIAO DỊCH TIỀN
+        # 2. LƯU GIAO DỊCH TIỀN (Ghi nhận người thụ hưởng là tv_duoc_nop)
         GiaoDich.objects.create(
-            loai='THU', so_tien=so_tien, ly_do=data.get('ly_do') or f"Nộp quỹ hộ cho {tv.ho_ten}",
-            loai_quy=quy, thanh_vien=tv, dot_thu=dot_thu_obj,
+            loai='THU', so_tien=so_tien, ly_do=data.get('ly_do') or f"Nộp quỹ hộ cho {tv_duoc_nop.ho_ten}",
+            loai_quy=quy, thanh_vien=tv_duoc_nop, dot_thu=dot_thu_obj,
             created_by=str(request.user.id)
         )
 
-        if tv.is_no_xau:
-            tv.is_no_xau = False
-            tv.save()
+        # 3. KÍCH HOẠT BẪY NHIỆM VỤ CHO NGƯỜI BẤM NÚT (Đại gia bao nuôi)
+        # Chỗ này sẽ tự động cộng 50 Xu và gắn ID Quest để hiện chữ DONE
+        check_and_reward_quest(request, 'Đại gia bao nuôi')
 
-        # ==========================================
-        # LOGIC CỘNG XU GAMIFICATION (NỘP HỘ)
-        # ==========================================
-        xu_thuong_nguoi_nop = 5 # Mặc định thưởng 5 Xu cho người tốt bụng
-        try:
-            # 1. Thưởng Xu cơ bản cho đứa được nộp hộ (Vẫn cho nó để nó đua top)
-            if hasattr(tv, 'vi_xu'):
-                xu_co_ban = int(so_tien / 10000)
-                if xu_co_ban > 0:
-                    tv.vi_xu += xu_co_ban
-                    tv.tong_xu_tich_luy += xu_co_ban
-                    tv.save()
-                    from .models import LichSuGiaoDichXu
-                    LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=xu_co_ban, ly_do=f"Được {request.user.full_name} nộp hộ")
+        # 4. Gỡ nợ xấu cho người được nộp hộ (nếu có)
+        if tv_duoc_nop.is_no_xau:
+            tv_duoc_nop.is_no_xau = False
+            tv_duoc_nop.save()
 
-            # 2. Thưởng Nhiệm vụ "Đại Gia Bao Nuôi" cho Sếp (Người đang bấm nút)
-            nguoi_nop_ho = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
-            if not nguoi_nop_ho:
-                nguoi_nop_ho = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+        # 5. Thưởng Xu cơ bản cho người ĐƯỢC nộp hộ (để khuyến khích trả nợ)
+        xu_co_ban = int(so_tien / 10000)
+        if xu_co_ban > 0 and hasattr(tv_duoc_nop, 'vi_xu'):
+            tv_duoc_nop.vi_xu += xu_co_ban
+            tv_duoc_nop.save()
+            LichSuGiaoDichXu.objects.create(
+                thanh_vien=tv_duoc_nop, loai_giao_dich='CONG_XU', 
+                so_xu=xu_co_ban, ly_do=f"Được {request.user.full_name} nộp hộ"
+            )
 
-            if nguoi_nop_ho and hasattr(nguoi_nop_ho, 'vi_xu'):
-                nguoi_nop_ho.vi_xu += xu_thuong_nguoi_nop
-                nguoi_nop_ho.tong_xu_tich_luy += xu_thuong_nguoi_nop
-                nguoi_nop_ho.save()
-                
-                from .models import LichSuGiaoDichXu
-                LichSuGiaoDichXu.objects.create(
-                    thanh_vien=nguoi_nop_ho, loai_giao_dich='CONG_XU', so_xu=xu_thuong_nguoi_nop, 
-                    ly_do=f"Đại gia bao nuôi: Nộp hộ cho {tv.ho_ten} (+5 Xu)"
-                )
-        except Exception as e:
-            print("Chưa cấu hình Model Xu:", e)
-
-        return JsonResponse({'status': 'success', 'message': f'Nộp hộ thành công! Bạn được cộng +{xu_thuong_nguoi_nop} Xu uy tín!', 'xu': xu_thuong_nguoi_nop})
+        return JsonResponse({'status': 'success', 'message': f'Nộp hộ cho {tv_duoc_nop.ho_ten} thành công!'})
+        
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)})
+        return JsonResponse({'status': 'error', 'message': f'Lỗi hệ thống: {str(e)}'})
 # ==========================================
 # 3. API TẠM ỨNG TIỀN
 # ==========================================
@@ -378,6 +363,7 @@ def api_chatbot(request):
             reply = f"⚠️ Hiện tại có {so_nguoi_no} người đang bị đánh dấu nợ xấu: {ten_nguoi_no}"
         else:
             reply = f"Xin lỗi sếp, em chưa hiểu câu: '{message}'. Sếp thử hỏi về 'số dư', 'giao dịch mới nhất' xem sao ạ!"
+            check_and_reward_quest(request, 'Lời chào tới FundBot')
 
         return JsonResponse({'status': 'success', 'reply': reply}, json_dumps_params={'ensure_ascii': False})
     except Exception as e:
@@ -442,6 +428,7 @@ def api_nop_quy(request):
             thanh_vien=tv,
             is_an_danh=is_an_danh
         )
+        
 
         if muc_tieu_id:
             mt_obj = MucTieuQuy.objects.filter(id=muc_tieu_id).first()
@@ -458,61 +445,110 @@ def api_nop_quy(request):
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': f'Lỗi Backend: {str(e)}'})
     
-# ==========================================
-# API: VÒNG QUAY GACHA (TRỪ 20 XU)
-# ==========================================
 @csrf_exempt
 @login_required
 @transaction.atomic
 def api_spin_gacha(request):
-    if request.method == 'POST':
-        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
-        if not tv: tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Chỉ nhận phương thức POST!'})
         
-        if not tv or tv.vi_xu < 20:
-            return JsonResponse({'status': 'error', 'message': 'Không đủ Xu! Bạn cần 20 Xu để quay.'})
+    try:
+        user = request.user
+        
+        # Nhận diện chức vụ để xưng hô cho mượt
+        is_admin = getattr(user, 'role', '') == 'ADMIN' or user.is_superuser
+        xung_ho = "sếp" if is_admin else "bạn"
+        danh_xung_hoa = "Sếp" if is_admin else "Bạn"
+        
+        # 1. TÌM HOẶC TẠO THÀNH VIÊN
+        tv = ThanhVien.objects.filter(user=user).first()
+        if not tv and getattr(user, 'mssv', ''):
+            tv = ThanhVien.objects.filter(mssv=user.mssv).first()
+        if not tv and getattr(user, 'email', ''): 
+            tv = ThanhVien.objects.filter(email=user.email).first()
+            
+        if not tv:
+            import time
+            tv = ThanhVien.objects.create(
+                ho_ten=user.full_name or user.username,
+                mssv=user.mssv or f"ADMIN-{user.id}-{int(time.time())}",
+                user=user,
+                vi_xu=getattr(user, 'credit_score', 0)
+            )
+        elif not tv.user:
+            tv.user = user
+            tv.save()
 
-        # Trừ 20 xu
-        tv.vi_xu -= 20
-        
-        # Tỉ lệ rớt đồ (Gacha Rate)
+        # [FIX LỖI ẢO MA]: ĐỒNG BỘ XU CHO ADMIN
+        # Nếu sếp buff điểm trong Django Admin, hệ thống sẽ tự cập nhật vào ví thực tế
+        if is_admin and getattr(user, 'credit_score', 0) > tv.vi_xu:
+            tv.vi_xu = user.credit_score
+            tv.save()
+
+        # 2. KIỂM TRA SỐ DƯ
+        if tv.vi_xu < 20:
+            return JsonResponse({'status': 'error', 'message': f'{danh_xung_hoa} ơi, không đủ 20 Xu để quay! (Ví thực tế đang có {tv.vi_xu} Xu)'})
+
+        # 3. QUAY GACHA VÀ TÍNH QUÀ
+        import random
         rand = random.randint(1, 100)
-        prize_xu = 0
-        angle = 0
-        message = ""
+        prize_xu, prize_type, voucher_name, angle, message = 0, "XU", "", 0, ""
 
-        if rand <= 50: # 50% xịt
-            prize_xu = 0
-            angle = random.choice([45, 135, 225, 315]) # Góc ô xịt
-            message = "Chúc bạn may mắn lần sau!"
-        elif rand <= 80: # 30% trúng 10 Xu (Lỗ 10 xu)
-            prize_xu = 10
-            angle = random.choice([0, 180]) 
-            message = "Trúng an ủi +10 Xu"
-        elif rand <= 95: # 15% trúng 30 Xu (Lãi 10 xu)
-            prize_xu = 30
-            angle = 90
-            message = "Tuyệt vời! Trúng +30 Xu"
-        else: # 5% Nổ hũ trúng 100 Xu
-            prize_xu = 100
-            angle = 270
-            message = "🎉 JACKPOT! NỔ HŨ +100 XU!"
+        if rand <= 40: 
+            angle = random.choice([345, 255, 105]); message = "Trượt rồi! Đen thôi đỏ quên đi."
+        elif rand <= 65: 
+            prize_xu = 10; angle = random.choice([315, 135]); message = "An ủi! Gỡ gạc được +10 Xu"
+        elif rand <= 80: 
+            prize_xu = 20; angle = random.choice([285, 75]); message = "Hú vía! Hòa vốn +20 Xu"
+        elif rand <= 90: 
+            prize_xu = 30; angle = random.choice([225, 15]); message = "Ngon lành! Lời được +30 Xu"
+        elif rand <= 95: 
+            prize_xu = 50; angle = 195; message = "Quá đã! Trúng quả đậm +50 Xu"
+        elif rand <= 99: # 4% TRÚNG VOUCHER
+            qua_tang = QuaTang.objects.filter(is_active=True, so_luong_kho__gt=0).order_by('?').first()
+            if qua_tang:
+                prize_type, voucher_name, angle = "VOUCHER", qua_tang.ten_qua, 45
+                message = f"🎁 Đỉnh! {danh_xung_hoa} trúng quà: {voucher_name}"
+                qua_tang.so_luong_kho -= 1
+                qua_tang.save()
+                KhoDoThanhVien.objects.create(thanh_vien=tv, qua_tang=qua_tang)
+            else:
+                prize_xu, angle, message = 100, 45, f"Quà hết rồi, bù {xung_ho} 100 Xu nè!"
+        else: # 1% ĐỘC ĐẮC
+            prize_xu, angle, message = 500, 165, "🔥 JACKPOT! NỔ ĐỘC ĐẮC +500 XU!"
 
-        # Cộng xu thưởng
+        # 4. TRỪ XU VÀ LƯU LỊCH SỬ GIAO DỊCH
+        tv.vi_xu -= 20
         if prize_xu > 0:
             tv.vi_xu += prize_xu
             tv.tong_xu_tich_luy += prize_xu
         tv.save()
 
-        # Lưu lịch sử
-        LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='TRU_XU', so_xu=20, ly_do=f"Chơi Gacha ({message})")
+        # Đồng bộ ngược lại cho User
+        user.credit_score = tv.vi_xu 
+        user.save()
+
+        LichSuGiaoDichXu.objects.create(
+            thanh_vien=tv, loai_giao_dich='TRU_XU', so_xu=20, 
+            ly_do=f"Quay Gacha ({message})", created_by=str(user.id)
+        )
         if prize_xu > 0:
-            LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=prize_xu, ly_do=f"Trúng Gacha")
-
-        # angle + 3600 để vòng quay xoay nhiều vòng trước khi dừng
-        return JsonResponse({'status': 'success', 'message': message, 'angle': angle + 3600, 'prize': prize_xu, 'new_balance': tv.vi_xu})
-    return JsonResponse({'status': 'error', 'message': 'Lỗi phương thức'})
-
+            LichSuGiaoDichXu.objects.create(
+                thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=prize_xu, 
+                ly_do="Trúng thưởng Gacha", created_by=str(user.id)
+            )
+        
+        check_and_reward_quest(request, 'Con nghiện Gacha')
+        return JsonResponse({
+            'status': 'success', 'message': message, 'angle': angle, 
+            'prize': prize_xu, 'prize_type': prize_type, 'voucher_name': voucher_name,
+            'new_balance': tv.vi_xu
+        })
+        
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({'status': 'error', 'message': f'LỖI DATABASE: {str(e)}'})
 # ==========================================
 # API: VOTE KHẢO SÁT (CỘNG 10 XU)
 # ==========================================
@@ -521,6 +557,7 @@ def api_spin_gacha(request):
 @transaction.atomic
 def api_submit_vote(request):
     if request.method == 'POST':
+        check_and_reward_quest(request, 'Tiếng nói cử tri')
         data = json.loads(request.body)
         poll_id = data.get('poll_id')
         

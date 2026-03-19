@@ -20,3 +20,4 @@ td { padding: 20px; font-size: 14px; border-bottom: 1px solid rgba(255,255,255,0
 .time-col .date { font-weight: 700;} .time-col .time { color: var(--text-light); font-size: 11px; }
 .avatar-circle { width: 40px; height: 40px; border-radius: 50%; background: var(--theme-secondary); color: #fff; display: flex; justify-content: center; align-items: center; font-weight: 900; }
 .user-cell .mssv { color: var(--text-light); font-size: 11px; font-family: monospace;}
+

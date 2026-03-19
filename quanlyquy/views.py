@@ -4,7 +4,7 @@ import time
 import random
 import csv
 from datetime import datetime, timedelta
-
+from django.db import transaction
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Sum, Q, Count
@@ -22,7 +22,7 @@ from .models import (
     GiaoDich, LichSuGiaoDichXu, ThanhVien, TaiSan, LoaiQuy, DotThu, 
     MucTieuQuy, SuKienNhacViec, User, QuaTang, 
     NhiemVu, BieuQuyet, HuyHieuThanhVien, QATestingLog, 
-    LichSuWebhook, DanhMucThuChi
+    LichSuWebhook, DanhMucThuChi, ThongBaoBuuTa
 )
 from .utils import format_money
 
@@ -36,6 +36,46 @@ def get_percent_change(current, previous):
     if not previous or previous == 0:
         return 100 if current > 0 else 0
     return round(((current - previous) / previous) * 100, 1)
+def check_and_reward_quest(request, tu_khoa_nhiem_vu):
+    if not request.user.is_authenticated: return False
+
+    # 1. Tìm nhiệm vụ
+    nv = NhiemVu.objects.filter(ten_nhiem_vu__icontains=tu_khoa_nhiem_vu, is_active=True).first()
+    if not nv: return False
+
+    # 2. Tìm hoặc TẠO hồ sơ ThanhVien cho người đang thao tác
+    tv = ThanhVien.objects.filter(user=request.user).first()
+    if not tv:
+        tv = ThanhVien.objects.create(
+            ho_ten=request.user.full_name or request.user.username,
+            mssv=getattr(request.user, 'mssv', f"ADMIN-{request.user.id}"),
+            user=request.user,
+            vi_xu=getattr(request.user, 'credit_score', 0)
+        )
+
+    # 3. KIỂM TRA XEM HÔM NAY ĐÃ LÀM CHƯA (DAILY QUEST)
+    today = timezone.now().date()
+    da_lam = LichSuGiaoDichXu.objects.filter(
+        thanh_vien=tv, 
+        nhiem_vu_lien_quan=nv,
+        ngay_thuc_hien__date=today # <--- Dòng ma thuật: Chỉ check lịch sử của đúng ngày hôm nay
+    ).exists()
+    
+    if da_lam: return False # Hôm nay làm rồi thì thôi, mai quay lại nhé!
+
+    # 4. TRẢ THƯỞNG VÀ GẮN LINK NHIỆM VỤ
+    tv.vi_xu += nv.phan_thuong_xu
+    tv.save()
+    
+    LichSuGiaoDichXu.objects.create(
+        thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=nv.phan_thuong_xu,
+        ly_do=f"Hoàn thành Quest: {nv.ten_nhiem_vu}", 
+        nhiem_vu_lien_quan=nv, 
+        created_by=str(request.user.id)
+    )
+
+    messages.success(request, f"QUEST_SUCCESS|{nv.ten_nhiem_vu}|{nv.phan_thuong_xu}")
+    return True
 
 # ==========================================
 # 2. HỆ THỐNG XÁC THỰC (AUTH)
@@ -131,6 +171,7 @@ def logout_view(request):
 # ==========================================
 @login_required
 def dashboard(request):
+    check_and_reward_quest(request, 'Chăm chỉ điểm danh')
     now = timezone.now()
     thang_nay = now.month
     nam_nay = now.year
@@ -285,6 +326,7 @@ def dashboard(request):
 # ==========================================
 @login_required
 def giao_dich_view(request):
+    check_and_reward_quest(request, 'Kế toán mẫn cán')
     giao_dich_list_raw = GiaoDich.objects.all().select_related('thanh_vien').order_by('-ngay_tao')
     q = request.GET.get('search', '').strip()
     tx_type = request.GET.get('type', '')
@@ -318,6 +360,7 @@ def giao_dich_view(request):
 
 @login_required
 def thong_ke_view(request):
+    check_and_reward_quest(request, 'Chuyên gia phân tích')
     stats = GiaoDich.objects.annotate(m=TruncMonth('ngay_tao')).values('m').annotate(
         thu=Sum('so_tien', filter=Q(loai__in=['THU', 'LAI', 'HU'])),
         chi=Sum('so_tien', filter=Q(loai__in=['CHI', 'TU']))
@@ -376,62 +419,122 @@ def thong_ke_view(request):
 
 @login_required
 def tien_do_thu_view(request):
+    check_and_reward_quest(request, 'Kiểm tra nợ nần')
     is_admin = is_thu_quy(request.user)
-    dot_thu = DotThu.objects.order_by('-id').first()
-    tat_ca_tv = ThanhVien.objects.filter(deleted_at__isnull=True)
+    user_role_name = "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp"
+
+    # ==========================================
+    # 1. BẮT BỘ LỌC TỪ GIAO DIỆN VÀ LẤY ĐỢT THU
+    # ==========================================
+    danh_sach_dot_thu = DotThu.objects.order_by('-created_at')
+    dot_thu_id = request.GET.get('dot_thu_id') 
     
-    total_needed = 0
-    total_collected = 0
-    if dot_thu:
-        total_needed = dot_thu.so_tien_moi_nguoi * tat_ca_tv.count()
-        total_collected = GiaoDich.objects.filter(dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+    if dot_thu_id:
+        dot_thu = DotThu.objects.filter(id=dot_thu_id).first()
+    else:
+        dot_thu = danh_sach_dot_thu.first() 
 
     search_query = request.GET.get('search', '').strip()
-    tv_filtered = tat_ca_tv
-    if search_query:
-        tv_filtered = tv_filtered.filter(Q(ho_ten__icontains=search_query) | Q(mssv__icontains=search_query))
+    status_filter = request.GET.get('status', 'all') 
 
+    # ==========================================
+    # 2. TÍNH TỔNG QUAN (CHỈ SỐ KPI ĐẦU TRANG)
+    # ==========================================
+    tat_ca_tv = ThanhVien.objects.filter(deleted_at__isnull=True)
+    dinh_muc = dot_thu.so_tien_moi_nguoi if dot_thu else 0
+    total_needed = dinh_muc * tat_ca_tv.count()
+    
+    total_collected = 0
+    if dot_thu:
+        total_collected = GiaoDich.objects.filter(dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+
+    # ==========================================
+    # 3. QUÉT THÀNH VIÊN: GOM NỢ THẬT VÀ LỌC HIỂN THỊ (1 VÒNG LẶP DUY NHẤT TỐI ƯU)
+    # ==========================================
     thanh_vien_stats_raw = []
-    for tv in tv_filtered:
-        # Tính tiền đóng dựa trên Đợt thu hiện tại
+    danh_sach_no = []
+    total_actual_owe_raw = 0  # Biến lưu tổng nợ thật để fix lỗi 0đ
+    my_status = False
+    search_query_lower = search_query.lower()
+
+    for tv in tat_ca_tv:
+        # 3.1. Tính số tiền người này đã nộp cho đợt này
         da_nop = GiaoDich.objects.filter(thanh_vien=tv, dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
-        is_me = (tv.mssv == getattr(request.user, 'mssv', None) or tv.email == request.user.email)
-        danh_sach_no = [x for x in thanh_vien_stats_raw if x['is_no_xau']]
         
+        is_hoan_thanh = da_nop >= dinh_muc
+        is_no_xau = da_nop < dinh_muc
+        is_me = (tv.user == request.user) or (tv.mssv == getattr(request.user, 'mssv', None)) or (tv.email == request.user.email)
+        
+        if is_me and is_hoan_thanh: 
+            my_status = True
+
+        # 3.2. LUÔN LUÔN GOM DANH SÁCH NỢ (Dành cho Thẻ Cần Thu Thêm và Popup nhắc nợ)
+        if is_no_xau: 
+            tien_no = dinh_muc - da_nop
+            total_actual_owe_raw += tien_no  # Cộng dồn tiền nợ thật
+            danh_sach_no.append({
+                'id': tv.id, 'ho_ten': tv.ho_ten, 'mssv': tv.mssv, 'is_no_xau': True
+            })
+
+        # 3.3. LOGIC BỘ LỌC (Lọc ra những người đủ điều kiện hiện lên Bảng theo dõi)
+        if search_query:
+            if search_query_lower not in tv.ho_ten.lower() and search_query_lower not in str(tv.mssv).lower():
+                continue
+
+        if status_filter == 'completed' and not is_hoan_thanh: continue
+        if status_filter == 'debt' and not is_no_xau: continue
+
         thanh_vien_stats_raw.append({
-            'id': tv.id, 
-            'ho_ten': tv.ho_ten, 
-            'mssv': tv.mssv,
+            'id': tv.id, 'ho_ten': tv.ho_ten, 'mssv': tv.mssv,
             'so_tien_da_dong': format_money(da_nop),
-            'is_hoan_thanh': da_nop >= (dot_thu.so_tien_moi_nguoi if dot_thu else 0),
-            'is_no_xau': da_nop < (dot_thu.so_tien_moi_nguoi if dot_thu else 0),
-            'is_me': is_me
+            'so_tien_dinh_muc': format_money(dinh_muc), 
+            'is_hoan_thanh': is_hoan_thanh, 'is_no_xau': is_no_xau, 'is_me': is_me
         })
 
-    paginator = Paginator(thanh_vien_stats_raw, 10)
-    page_number = request.GET.get('page')
-    thanh_vien_stats = paginator.get_page(page_number)
+    # ==========================================
+    # 4. PHÂN TRANG CHI TIẾT VÀ ĐÓNG GÓI DỮ LIỆU (BẢN DÀI CHUẨN)
+    # ==========================================
+    paginator = Paginator(thanh_vien_stats_raw, 10) # 10 dòng mỗi trang
+    page_number = request.GET.get('page', 1)
+
+    try:
+        thanh_vien_stats = paginator.page(page_number)
+    except PageNotAnInteger:
+        # Nếu page không phải số nguyên, về trang 1
+        thanh_vien_stats = paginator.page(1)
+    except EmptyPage:
+        # Nếu page vượt quá số trang, về trang cuối
+        thanh_vien_stats = paginator.page(paginator.num_pages)
 
     percent = int((total_collected / total_needed * 100)) if total_needed > 0 else 0
     
-    # Lấy trạng thái của chính sếp Quân để hiện Badge riêng
-    my_status = next((x['is_hoan_thanh'] for x in thanh_vien_stats_raw if x['is_me']), False)
-    
+    # --- PHẦN BỔ SUNG: XỬ LÝ THÔNG BÁO BƯU TÁ (Fix lỗi hòm thư rỗng) ---
+    try:
+        # Lấy 20 thông báo mới nhất cho popup
+        thong_bao_buu_ta = ThongBaoBuuTa.objects.filter(nguoi_nhan=request.user).order_by('-created_at')[:20]
+        unread_notif_count = ThongBaoBuuTa.objects.filter(nguoi_nhan=request.user, is_read=False).count()
+    except:
+        thong_bao_buu_ta = []
+        unread_notif_count = 0
 
     context = {
         'is_admin': is_admin,
-        'user_role_name': "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp",
+        'user_role_name': user_role_name,
         'dot_thu': dot_thu,
+        'danh_sach_dot_thu': danh_sach_dot_thu, 
         'total_needed': format_money(total_needed),
         'total_collected': format_money(total_collected),
-        'total_remaining': format_money(max(0, total_needed - total_collected)),
+        'total_remaining': format_money(total_actual_owe_raw), # HIỆN TIỀN NỢ THẬT
         'percent': percent,
         'remaining_percent': max(0, 100 - percent),
         'thanh_vien_stats': thanh_vien_stats,
         'search_query': search_query,
-        'my_status': my_status, # Cần thiết cho Badge "Trạng thái của bạn"
+        'current_status': status_filter, 
+        'my_status': my_status,
         'debt_count': len(danh_sach_no),
         'danh_sach_no': danh_sach_no,
+        'unread_notif_count': unread_notif_count,
+        'thong_bao_buu_ta': thong_bao_buu_ta, # <--- TRUYỀN DỮ LIỆU NÀY RA ĐỂ HÒM THƯ KHÔNG TRỐNG
         'deadline': dot_thu.han_chot.strftime("%d/%m/%Y") if dot_thu and dot_thu.han_chot else "Chưa đặt",
     }
     return render(request, 'quanlyquy/page_tien_do.html', context)
@@ -443,30 +546,44 @@ def cai_dat_view(request):
 
 @login_required
 def gamification_view(request):
-    # Dùng hàm helper để kiểm tra quyền Admin chuẩn xác
-    is_admin = is_thu_quy(request.user)
-    
-    # Ép tên chức vụ hiển thị đúng trên UI
-    user_role_name = "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp"
-    
-    # ========================================================
-    # 1. PHẢI TÌM my_tv TRƯỚC ĐỂ TRÁNH LỖI UNBOUND LOCAL ERROR
-    # ========================================================
-    my_tv = None 
-    mssv_user = getattr(request.user, 'mssv', '')
-    email_user = getattr(request.user, 'email', '')
+    # 🎯 1. BẪY NHIỆM VỤ: Thưởng ngay khi sếp ghé thăm Trạm Giải Trí
+    check_and_reward_quest(request, 'Khám phá Khu Vui Chơi')
 
-    if mssv_user:
-        my_tv = ThanhVien.objects.filter(mssv=mssv_user).first()
+    is_admin = is_thu_quy(request.user)
+    user_role_name = "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp"
+
+    # 🔍 2. TÌM HỒ SƠ THÀNH VIÊN (Đồng bộ tuyệt đối với API Quay Gacha)
+    # Ưu tiên tìm theo liên kết User trực tiếp để tránh lỗi Unique Constraint
+    my_tv = ThanhVien.objects.filter(user=request.user).first()
     
-    if not my_tv and email_user:
-        my_tv = ThanhVien.objects.filter(email=email_user).first()
+    if not my_tv:
+        mssv_user = getattr(request.user, 'mssv', '')
+        if mssv_user:
+            my_tv = ThanhVien.objects.filter(mssv=mssv_user).first()
+            
+    if not my_tv:
+        email_user = getattr(request.user, 'email', '')
+        if email_user:
+            my_tv = ThanhVien.objects.filter(email=email_user).first()
         
+    # Lấy ví Xu thực tế từ hồ sơ (Ví thực tế quan trọng hơn điểm ảo credit_score)
     vi_xu = getattr(my_tv, 'vi_xu', 0) if my_tv else getattr(request.user, 'credit_score', 0)
 
-    # ========================================================
-    # 2. SAU KHI CÓ my_tv RỒI MỚI TÌM LỊCH SỬ XU VÀ VOTE
-    # ========================================================
+    # ✅ 3. LỌC DANH SÁCH NHIỆM VỤ ĐÃ HOÀN THÀNH (Để hiện chữ DONE)
+    # Logic: Tìm trong lịch sử giao dịch Xu, những mục có gắn ID Nhiệm vụ
+    # ✅ 3. LỌC DANH SÁCH NHIỆM VỤ ĐÃ HOÀN THÀNH (DAILY RESET)
+    # Logic: Chỉ tìm các nhiệm vụ đã nhận thưởng trong NGÀY HÔM NAY
+    today = timezone.now().date()
+    completed_quest_ids = []
+    if my_tv:
+        completed_quest_ids = list(LichSuGiaoDichXu.objects.filter(
+            thanh_vien=my_tv, 
+            loai_giao_dich='CONG_XU', 
+            nhiem_vu_lien_quan__isnull=False,
+            ngay_thuc_hien__date=today # <--- Dòng ma thuật thứ 2: Chuyển DONE thành GO khi qua ngày
+        ).values_list('nhiem_vu_lien_quan_id', flat=True))
+
+    # 📜 4. LỊCH SỬ BIẾN ĐỘNG XU & ID CÁC CUỘC VOTE ĐÃ THAM GIA
     lich_su_xu = LichSuGiaoDichXu.objects.filter(thanh_vien=my_tv).order_by('-ngay_thuc_hien')[:20] if my_tv else []
     voted_poll_ids = []
     
@@ -478,29 +595,31 @@ def gamification_view(request):
                 except: 
                     pass
     
-    # Lấy danh sách nhiệm vụ từ Database (Lấy cả nhiệm vụ sếp vừa tạo)
+    # 🎁 5. LẤY DỮ LIỆU CỬA HÀNG VÀ NHIỆM VỤ
     nhiem_vu_list = NhiemVu.objects.filter(is_active=True).order_by('id')
     bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True)
     cua_hang_items = QuaTang.objects.filter(is_active=True)[:3]
 
-    # Bảng xếp hạng
+    # 🏆 6. BẢNG XẾP HẠNG (Kèm Huy hiệu Đẳng cấp)
     top_dai_gia_raw = ThanhVien.objects.all().order_by('-tong_xu_tich_luy')[:5]
     top_dai_gia = []
     
     for tv in top_dai_gia_raw:
-        # Lấy tối đa 3 huy hiệu xịn nhất của người này
+        # Lấy tối đa 3 huy hiệu xịn nhất của người này để khoe trên bảng vàng
         huy_hieus = HuyHieuThanhVien.objects.filter(thanh_vien=tv).select_related('huy_hieu')[:3]
         tv.danh_sach_huy_hieu = [hh.huy_hieu for hh in huy_hieus]
         top_dai_gia.append(tv)
 
+    # 7. ĐÓNG GÓI DỮ LIỆU ĐẨY RA GIAO DIỆN
     context = {
         'nhiem_vu_list': nhiem_vu_list,
+        'completed_quest_ids': completed_quest_ids, # Biến này quyết định nút GO hay DONE nè sếp
         'bieu_quyet_active': bieu_quyet_active,
         'cua_hang_items': cua_hang_items,
         'top_dai_gia': top_dai_gia,
         'is_admin': is_admin,
-        'voted_poll_ids': voted_poll_ids, # Danh sách ID khảo sát đã vote
-        'lich_su_xu': lich_su_xu,         # Lịch sử biến động Xu
+        'voted_poll_ids': voted_poll_ids,
+        'lich_su_xu': lich_su_xu,
         'user_role_name': user_role_name,
         'vi_xu': vi_xu,
         'has_vong_quay': True,
@@ -555,6 +674,7 @@ def qa_testing_view(request):
 
 @login_required
 def store_view(request):
+    
     is_admin = getattr(request.user, 'role', '') == 'ADMIN' or request.user.is_superuser
     items = QuaTang.objects.all()
     context = {
@@ -562,6 +682,7 @@ def store_view(request):
         'is_admin': is_admin,
         'user_role_name': "Thủ quỹ hệ thống" if is_admin else "Thành viên lớp" 
     }
+    check_and_reward_quest(request, 'Window Shopping')
     return render(request, 'quanlyquy/store.html', context)
 
 # ==========================================
@@ -572,6 +693,26 @@ def api_chaos_action(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         user = request.user if request.user.is_authenticated else None
+
+        # [THÊM CỤC NÀY VÀO TRONG HÀM]
+        if action == 'SEED_QUESTS':
+            NhiemVu.objects.all().delete() # Xóa sạch quest cũ
+            quests = [
+                ("Chăm chỉ điểm danh", "Đăng nhập và xem trang Tổng quan", 5, 'AUTO_TUONG_TAC'),
+                ("Khám phá Khu Vui Chơi", "Ghé thăm Trạm Giải Trí FundSmart", 5, 'AUTO_TUONG_TAC'),
+                ("Kế toán mẫn cán", "Tra cứu danh sách giao dịch", 10, 'AUTO_TUONG_TAC'),
+                ("Chuyên gia phân tích", "Vào xem biểu đồ dòng tiền", 10, 'AUTO_TUONG_TAC'),
+                ("Kiểm tra nợ nần", "Vào xem tiến độ đóng quỹ", 10, 'AUTO_TUONG_TAC'),
+                ("Window Shopping", "Ghé thăm Cửa hàng đặc quyền", 5, 'AUTO_TUONG_TAC'),
+                ("Lời chào tới FundBot", "Nhắn tin tương tác với Trợ lý AI", 15, 'AUTO_TUONG_TAC'),
+                ("Tiếng nói cử tri", "Tham gia vote một Khảo sát bất kỳ", 20, 'AUTO_TUONG_TAC'),
+                ("Công dân gương mẫu", "Hoàn thành tự nộp quỹ lớp", 30, 'AUTO_NOP_QUY'),
+                ("Đại gia bao nuôi", "Nộp quỹ hộ cho một thành viên khác", 50, 'AUTO_NOP_QUY'),
+                ("Con nghiện Gacha", "Chơi vòng quay ít nhất 1 lần", 10, 'AUTO_TUONG_TAC'),
+            ]
+            for q in quests:
+                NhiemVu.objects.create(ten_nhiem_vu=q[0], mo_ta=q[1], phan_thuong_xu=q[2], loai_nhiem_vu=q[3], is_active=True)
+            return JsonResponse({"status": "success", "message": "Đã reset và tạo 10 Quest chuẩn mực!"})
 
         if action == 'TIMEOUT_504':
             time.sleep(1.5)
@@ -672,14 +813,51 @@ def sepay_webhook(request):
             
     return JsonResponse({"status": "invalid_method", "message": "Chỉ nhận phương thức POST"}, status=405)
 
-from django.views.decorators.http import require_POST
-import json
+@login_required
+def api_mass_remind_debt(request):
+    """API thật xử lý lệnh nhắc nợ hàng loạt (Dành cho thủ quỹ)"""
+    if not is_thu_quy(request.user):
+        return JsonResponse({'status': 'error', 'message': 'Lệnh này chỉ thủ quỹ mới được dùng!'})
+    
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Chỉ nhận lệnh POST!'})
 
-from django.views.decorators.http import require_POST
-import json
+    dot_thu_id = request.POST.get('dot_thu_id')
+    dot_thu = DotThu.objects.filter(id=dot_thu_id).first() if dot_thu_id else DotThu.objects.order_by('-created_at').first()
+    
+    if not dot_thu:
+        return JsonResponse({'status': 'error', 'message': 'Không tìm thấy đợt thu này!'})
 
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-import json
-from django.http import JsonResponse
+    dinh_muc = dot_thu.so_tien_moi_nguoi
+    tat_ca_tv = ThanhVien.objects.filter(deleted_at__isnull=True).select_related('user')
+    
+    count_notified = 0
+    
+    # 💥 BẮN THÔNG BÁO CHO TOÀN BỘ NGƯỜI NỢ (KỂ CẢ ADMIN)
+    with transaction.atomic():
+        for tv in tat_ca_tv:
+            da_nop = GiaoDich.objects.filter(thanh_vien=tv, dot_thu=dot_thu, loai__in=['THU', 'LAI']).aggregate(Sum('so_tien'))['so_tien__sum'] or 0
+            
+            if da_nop < dinh_muc: # Kiểm tra nợ thật
+                if tv.user: # Nếu thành viên đã liên kết User thì bắn thông báo
+                    xung_ho = "sếp" if is_thu_quy(tv.user) else "bạn"
+                    tieu_de = f"📣 Nhắc nợ gấp đợt: {dot_thu.ten_dot}"
+                    noi_dung = f"{xung_ho.capitalize()} ơi! Gấp gấp! Số xu đóng quỹ {format_money(dinh_muc - da_nop)}đ cho đợt '{dot_thu.ten_dot}' chưa đóng. Đóng quỹ liền tay nhé sếp!"
+                    
+                    # Bơm dữ liệu vào kho Bưu tá
+                    ThongBaoBuuTa.objects.create(
+                        nguoi_nhan=tv.user, tieu_de=tieu_de, noi_dung=noi_dung, 
+                        loai=ThongBaoBuuTa.Type.REMIND, link_url='/tien-do/'
+                    )
+                    count_notified += 1
 
+    return JsonResponse({'status': 'success', 'message': f'Đã băm lệnh, bắn {count_notified} bản tin nhắc nợ đến hòm thư, nổ chuông toàn bộ người nợ thành công! 🚀'})
+
+@login_required
+def api_clear_notifications(request):
+    """API dọn sạch thông báo rác, giảm tải Database"""
+    if request.method == 'POST':
+        from .models import ThongBaoBuuTa
+        ThongBaoBuuTa.objects.filter(nguoi_nhan=request.user).delete()
+        return JsonResponse({'status': 'success', 'message': 'Đã dọn sạch hộp thư!'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request'})

@@ -1,71 +1,9 @@
 /* ======================================================
-   XỬ LÝ NGHIỆP VỤ TIẾN ĐỘ THU (tien_do.js)
+   XỬ LÝ NGHIỆP VỤ TIẾN ĐỘ THU (tien_do.js) - BẢN HOÀN THIỆN
    ====================================================== */
 
-// 1. Hàm Toggle Chatbot (Bản Fix Cứng 100%)
-window.toggleChatbot = function() {
-    const bot = document.getElementById('chatbot-window');
-    if(!bot) return;
-
-    // Check trạng thái dựa trên Opacity
-    const isClosed = bot.style.opacity === "0" || bot.style.opacity === "";
-
-    if (isClosed) {
-        // MỞ BOT
-        bot.style.transform = 'scale(1)';
-        bot.style.opacity = '1';
-        bot.style.pointerEvents = 'auto'; // Cho phép tương tác
-        setTimeout(() => {
-            const input = document.getElementById('chat-input');
-            if(input) input.focus();
-        }, 300);
-    } else {
-        // ĐÓNG BOT
-        bot.style.transform = 'scale(0)';
-        bot.style.opacity = '0';
-        bot.style.pointerEvents = 'none'; // Không chặn click nút bên dưới
-    }
-};
-
-// 2. Hàm Gửi Tin Nhắn
-window.sendChatMessage = async function() {
-    const input = document.getElementById('chat-input');
-    const body = document.getElementById('chat-body');
-    if(!input || !body) return;
-    const message = input.value.trim();
-    if (!message) return;
-
-    const userMsg = document.createElement('div');
-    userMsg.style.cssText = "align-self: flex-end; background: var(--theme-primary); color: white; padding: 10px 15px; border-radius: 15px 0 15px 15px; font-size: 13px; max-width: 80%; margin-top: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);";
-    userMsg.innerText = message;
-    body.appendChild(userMsg);
-    input.value = '';
-    body.scrollTop = body.scrollHeight;
-
-    const botTyping = document.createElement('div');
-    botTyping.style.cssText = "align-self: flex-start; background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; color: #64748b; font-style: italic; margin-top: 10px;";
-    botTyping.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang phân tích...';
-    body.appendChild(botTyping);
-    body.scrollTop = body.scrollHeight;
-
-    try {
-        const response = await fetch('/api/chatbot/', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-            body: JSON.stringify({ message: message })
-        });
-        const data = await response.json();
-        body.removeChild(botTyping);
-
-        const botMsg = document.createElement('div');
-        botMsg.style.cssText = "align-self: flex-start; background: white; padding: 10px 15px; border-radius: 0 15px 15px 15px; font-size: 13px; max-width: 80%; box-shadow: 0 2px 5px rgba(0,0,0,0.05); line-height: 1.5; margin-top: 10px; color: #334155;";
-        botMsg.innerHTML = data.reply; 
-        body.appendChild(botMsg);
-        body.scrollTop = body.scrollHeight;
-    } catch (error) { if(botTyping.parentNode) body.removeChild(botTyping); }
-};
-
-// 3. Hàm Lấy Token Bảo Mật
+// 1. TIỆN ÍCH HỆ THỐNG
+// Hàm lấy CSRF Token để bảo mật các yêu cầu POST từ Django
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -81,22 +19,212 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// 4. Các hàm bổ trợ khác cho trang Tiến độ
-window.openModal = function(id) { 
-    const m = document.getElementById(id);
-    if(m) { m.style.display = 'flex'; m.classList.add('active'); }
-};
-window.closeModal = function(id) { 
-    const m = document.getElementById(id);
-    if(m) { m.style.display = 'none'; m.classList.remove('active'); }
+// 2. HIỂN THỊ THÔNG BÁO (TOAST)
+window.showToast = function(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    const color = type === 'success' ? '#10b981' : '#ef4444';
+    const icon = type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation';
+    
+    toast.style.cssText = `background: rgba(15, 23, 42, 0.95); border-left: 4px solid ${color}; color: white; padding: 16px 20px; border-radius: 12px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 12px; transform: translateX(120%); transition: 0.3s; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); margin-bottom: 10px; z-index: 99999;`;
+    toast.innerHTML = `<i class="fa-solid ${icon}" style="color: ${color}; font-size: 18px;"></i> ${message}`;
+    
+    container.appendChild(toast);
+    setTimeout(() => toast.style.transform = 'translateX(0)', 10);
+    setTimeout(() => {
+        toast.style.transform = 'translateX(120%)';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 };
 
-window.openNopHoModal = function(id, name, mssv) {
-    const idInput = document.getElementById('nopHoId');
-    const nameInput = document.getElementById('nopHoName');
-    const label = document.getElementById('nopHoLabel');
-    if(idInput) idInput.value = id;
-    if(nameInput) nameInput.value = name;
-    if(label) label.innerText = `${name} (${mssv})`;
-    openModal('nopHoModal');
+// 3. XỬ LÝ MODAL KPI CHI TIẾT
+// Khắc phục lỗi "bấm vào không hiện thông tin" bằng cách dùng dữ liệu từ window.FUND_DATA
+window.showKpiDetail = function(type) {
+    const modal = document.getElementById('kpiModal');
+    const title = document.getElementById('kpiModalTitle');
+    const content = document.getElementById('kpiModalContent');
+    const d = window.FUND_DATA; // Cầu nối dữ liệu từ HTML
+
+    if (!modal || !title || !content || !d) {
+        console.error("Thiếu container modal hoặc window.FUND_DATA chưa được khai báo!");
+        return;
+    }
+
+    if (type === 'muctieu') {
+        title.innerHTML = '<i class="fa-solid fa-flag-checkered" style="color: #a855f7;"></i> Chi Tiết Đợt Thu';
+        content.innerHTML = `
+            <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+                <p><strong>Tên đợt thu:</strong> <span style="color: white;">${d.tenDot}</span></p>
+                <p><strong>Loại quỹ:</strong> <span style="color: var(--theme-primary);">${d.tenQuy}</span></p>
+                <p><strong>Định mức:</strong> <span style="color: white;">${d.dinhMuc} đ</span></p>
+                <p><strong>Hạn chót:</strong> <span style="color: #fca5a5; font-weight: 800;">${d.deadline}</span></p>
+            </div>`;
+    } 
+    else if (type === 'tiendo') {
+        title.innerHTML = '<i class="fa-solid fa-chart-pie" style="color: #10b981;"></i> Thống Kê Dòng Tiền';
+        content.innerHTML = `
+            <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
+                <p><strong>Tiền kỳ vọng:</strong> <span style="color: white;">${d.totalNeeded} đ</span></p>
+                <p><strong>Đã thu thực tế:</strong> <span style="color: #10b981; font-weight: 800;">${d.totalCollected} đ</span></p>
+                <p><strong>Tỷ lệ hoàn thành:</strong> <span style="color: white;">${d.percent}%</span></p>
+                <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-top: 10px;">
+                    <div style="width: ${d.percent}%; height: 100%; background: #10b981; box-shadow: 0 0 10px #10b981;"></div>
+                </div>
+            </div>`;
+    } 
+    else if (type === 'conno') {
+        title.innerHTML = '<i class="fa-solid fa-circle-exclamation" style="color: #ef4444;"></i> Danh Sách Nợ Quỹ';
+        let listNoHtml = d.danhSachNo.length > 0 
+            ? d.danhSachNo.map(tv => `
+                <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                    <span style="color: white; font-weight: 600;">${tv.ho_ten}</span>
+                    <span style="color: #94a3b8; font-family: monospace;">${tv.mssv}</span>
+                </div>`).join('')
+            : '<p style="text-align: center; padding: 20px; color: #10b981;">Tuyệt vời! Không ai nợ quỹ.</p>';
+
+        content.innerHTML = `
+            <p>Có <strong style="color: #f87171;">${d.debtCount}</strong> thành viên chưa hoàn tất:</p>
+            <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">${listNoHtml}</div>
+            ${d.isAdmin ? `
+                <button onclick="runMassRemind()" id="massRemindBtn" class="hover-scale" style="width: 100%; background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 12px; border-radius: 10px; margin-top: 20px; font-weight: 800; cursor: pointer;">
+                    <i class="fa-solid fa-bullhorn me-2"></i> NHẮC NỢ HÀNG LOẠT 🚀
+                </button>` : ''}
+        `;
+    }
+    modal.style.display = 'flex';
 };
+
+// 4. NGHIỆP VỤ NHẮC NỢ & DỌN DẸP THÔNG BÁO
+window.runMassRemind = function() {
+    const btn = document.getElementById('massRemindBtn');
+    if (!btn) return;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang băm lệnh...';
+    btn.disabled = true;
+
+    fetch('/api/mass-remind/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+        body: new URLSearchParams({ 'dot_thu_id': window.FUND_DATA.dotThuId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        showToast(data.message, data.status);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> ĐÃ NHẮC XONG';
+    })
+    .catch(() => {
+        showToast("Lỗi kết nối máy chủ!", "error");
+        btn.disabled = false;
+    });
+};
+
+window.clearNotifications = function(btn) {
+    // 1. Mở modal xác nhận
+    const confirmModal = document.getElementById('customConfirmModal');
+    if(confirmModal) confirmModal.style.display = 'flex';
+
+    // 2. Xử lý khi bấm nút "XÁC NHẬN" trong modal
+    const okBtn = document.getElementById('executeClearBtn');
+    if(!okBtn) return;
+
+    okBtn.onclick = function() {
+        confirmModal.style.display = 'none';
+        
+        // Bắt đầu quay spinner
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        btn.style.pointerEvents = 'none'; // Khóa nút không cho bấm thêm
+
+        fetch(window.FUND_CONFIG.clearUrl, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': window.FUND_CONFIG.csrfToken }
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Server báo lỗi ' + res.status);
+            return res.json();
+        })
+        .then(data => {
+            if(data.status === 'success') {
+                // Xóa chấm đỏ báo số trên chuông
+                const bellIcon = document.querySelector('.fa-bell');
+                const badge = bellIcon ? bellIcon.parentElement.querySelector('span') : null;
+                if(badge) badge.style.display = 'none';
+                
+                // Cập nhật hòm thư trống
+                const container = document.getElementById('notif-list-container');
+                if(container) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 60px 0;">
+                            <i class="fa-solid fa-mailbox" style="font-size: 30px; color: rgba(255,255,255,0.1); margin-bottom: 20px;"></i>
+                            <p style="font-weight: 800; color: white;">Hộp thư trống</p>
+                        </div>`;
+                }
+                showToast("Đã dọn sạch hòm thư!", "success");
+            } else {
+                showToast("Lỗi: " + data.message, "error");
+            }
+        })
+        .catch(err => {
+            // NẾU LỖI THÌ DỪNG QUAY VÀ BÁO LỖI NGAY
+            console.error(err);
+            showToast("Không thể dọn rác. Kiểm tra lại đường dẫn (URL)!", "error");
+        })
+        .finally(() => {
+            // Dù thành công hay thất bại cũng phải trả lại nút như cũ
+            btn.innerHTML = originalText;
+            btn.style.pointerEvents = 'auto';
+        });
+    };
+};
+
+// 5. GÓP QUỸ HỘ (NỘP HỘ)
+window.submitNopHo = function() {
+    const amount = document.getElementById('nopHoAmount').value.replace(/\D/g, '');
+    const name = document.getElementById('nopHoName').value;
+    if (!amount || amount <= 0) { showToast("Số tiền không hợp lệ!", "error"); return; }
+
+    document.getElementById('nopHoModal').style.display = 'none';
+    showToast(`Đang xử lý nộp quỹ cho ${name}...`);
+
+    fetch('/api/nop-quy-ho/', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            tv_id: document.getElementById('nopHoId').value,
+            so_tien: amount,
+            dot_thu_id: window.FUND_DATA.dotThuId
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if(data.status === 'success') {
+            showToast(data.message, "success");
+            setTimeout(() => window.location.reload(), 1000);
+        } else showToast(data.message, "error");
+    });
+};
+
+// 6. CHATBOT AI LOGIC
+window.toggleChatbot = function() {
+    const bot = document.getElementById('chatbot-window');
+    if (!bot) return;
+    const isClosed = bot.style.opacity === "0" || bot.style.opacity === "";
+    bot.style.transform = isClosed ? 'scale(1)' : 'scale(0)';
+    bot.style.opacity = isClosed ? '1' : '0';
+    bot.style.pointerEvents = isClosed ? 'auto' : 'none';
+    if (isClosed) document.getElementById('chat-input')?.focus();
+};
+
+// 7. KHỞI TẠO KHI TRANG SẴN SÀNG
+document.addEventListener('DOMContentLoaded', () => {
+    // Tự động gán sự kiện cho các nút chatbot
+    document.getElementById('chatbot-fab')?.addEventListener('click', toggleChatbot);
+    document.getElementById('close-bot')?.addEventListener('click', toggleChatbot);
+    document.getElementById('send-chat')?.addEventListener('click', sendChatMessage);
+    document.getElementById('chat-input')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+});
