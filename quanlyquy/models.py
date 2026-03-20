@@ -286,6 +286,30 @@ class BieuQuyet(BaseModel):
     dang_mo = models.BooleanField(default=True, verbose_name="Đang diễn ra")
     class Meta: verbose_name = "Khảo Sát"; verbose_name_plural = "Bầu Cử / Khảo Sát"
 
+class PhuongAnBieuQuyet(BaseModel):
+    # Liên kết với bảng BieuQuyet ở trên. Dùng related_name='cac_phuong_an' để móc dữ liệu ra HTML cho dễ
+    bieu_quyet = models.ForeignKey(BieuQuyet, on_delete=models.CASCADE, related_name='cac_phuong_an')
+    noi_dung = models.CharField(max_length=255, verbose_name="Nội dung phương án (VD: Đi Vũng Tàu)")
+    luot_chon = models.IntegerField(default=0, verbose_name="Số người đã vote")
+
+    class Meta:
+        verbose_name = "Phương Án"
+        verbose_name_plural = "Các Phương Án"
+
+    def __str__(self):
+        return self.noi_dung
+    
+class ChiTietBinhChon(BaseModel):
+    bieu_quyet = models.ForeignKey(BieuQuyet, on_delete=models.CASCADE)
+    phuong_an = models.ForeignKey(PhuongAnBieuQuyet, on_delete=models.CASCADE)
+    thanh_vien = models.ForeignKey('ThanhVien', on_delete=models.CASCADE)
+
+    class Meta:
+        verbose_name = "Chi tiết Vote"
+        verbose_name_plural = "Lịch sử Vote chi tiết"
+        # Đảm bảo 1 người chỉ có 1 phiếu cho 1 câu hỏi
+        unique_together = ('bieu_quyet', 'thanh_vien')
+
 class QATestingLog(models.Model):
     nguoi_test = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     loai_test = models.CharField(max_length=100, verbose_name="Kịch bản giả lập")

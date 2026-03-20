@@ -52,6 +52,7 @@ urlpatterns = [
     path('api/gacha/spin/', api_views.api_spin_gacha, name='api_spin_gacha'),
     path('api/gacha/vote/', api_views.api_submit_vote, name='api_submit_vote'),
     path('api/shop/buy/', api_views.api_buy_item, name='api_buy_item'),
+    path('api/submit-vote/', api_views.api_submit_vote, name='api_submit_vote'),
     
     # --- 4. HÀM ĐĂNG NHẬP, ĐĂNG KÝ & ĐĂNG XUẤT ---
     path('accounts/login/', views.login_view, name='login'),

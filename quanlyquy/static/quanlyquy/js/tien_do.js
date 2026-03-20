@@ -18,6 +18,19 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+// BỔ SUNG VÀO ĐẦU FILE TIEN_DO.JS
+window.openModal = function(id) { 
+    const m = document.getElementById(id);
+    if(m) {
+        m.style.display = 'flex';
+        m.style.zIndex = '10000';
+    }
+};
+
+window.closeModal = function(id) { 
+    const m = document.getElementById(id);
+    if(m) m.style.display = 'none'; 
+};
 
 // 2. HIỂN THỊ THÔNG BÁO (TOAST)
 window.showToast = function(message, type = 'success') {

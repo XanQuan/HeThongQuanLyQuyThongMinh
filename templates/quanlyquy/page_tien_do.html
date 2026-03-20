@@ -401,7 +401,7 @@
     </div>
 </div>
 
-<div class="modal-overlay" id="userProfileModal" style="z-index: 10000;">
+<div class="modal-overlay" id="userProfileModal" style="z-index: 10000; display: none;">
     <div class="modal-content" style="width: 380px; text-align: center; background: var(--theme-bg-base, #1e293b); border: 1px solid rgba(255,255,255,0.05);">
         <div class="modal-header" style="justify-content: flex-end; margin-bottom: 0;">
             <button class="modal-close" onclick="closeModal('userProfileModal')" style="background: transparent; border: none; cursor: pointer; color: var(--text-light, #94a3b8); font-size: 20px;"><i class="fa-solid fa-xmark"></i></button>
@@ -478,6 +478,19 @@
 
 <script src="{% static 'quanlyquy/js/tien_do.js' %}"></script>
 <script>
+    // BỔ SUNG 2 HÀM NÀY VÀO ĐỂ MỞ ĐƯỢC AVATAR
+    function openModal(id) { 
+    const m = document.getElementById(id);
+    if(m) { 
+        m.style.display = 'flex'; 
+        m.style.opacity = '1';
+        m.classList.add('active');
+    }
+}
+    function closeModal(id) { 
+        const modal = document.getElementById(id);
+        if(modal) modal.style.display = 'none'; 
+    }
     window.FUND_DATA = {
         csrfToken: '{{ csrf_token }}',
         dotThuId: '{{ dot_thu.id }}',
@@ -489,7 +502,7 @@
         tenDot: '{{ dot_thu.ten_dot|default:"Chưa có thông tin" }}',
         tenQuy: '{{ dot_thu.loai_quy.ten_quy|default:"---" }}',
         dinhMuc: '{{ dot_thu.so_tien_moi_nguoi|default:"0" }}',
-        clearUrl: "{% url 'api_clear_notifications' %}"
+        clearUrl: "{% url 'api_clear_notifications' %}",
         isAdmin: {% if is_admin %}true{% else %}false{% endif %},
         // Danh sách nợ chuyển thành JSON cho JS đọc được
         danhSachNo: [
@@ -499,4 +512,5 @@
         ]
     };
 </script>
-<script src="{% static 'quanlyquy/js/tien_do.js' %}"></script>
+</body>
+</html>

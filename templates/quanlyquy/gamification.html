@@ -313,33 +313,71 @@
                         {% endif %}
 
                         {% if bieu_quyet_active or is_admin %}
-                        <div class="game-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 24px; padding: 25px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <h3 class="game-title" style="margin: 0; color: white; font-weight: 900; text-transform: uppercase;">
-                                    <i class="fa-solid fa-comments-dollar text-success me-2 anim-float" style="display: inline-block;"></i> Khảo sát
-                                </h3>
-                                {% if is_admin %}<a href="/admin/quanlyquy/bieuquyet/add/" class="admin-action-btn hover-lift" style="color: #10b981; border-color: rgba(16, 185, 129, 0.5);"><i class="fa-solid fa-plus"></i> Tạo Vote</a>{% endif %}
+<div class="game-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 24px; padding: 25px; margin-bottom: 25px;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h3 class="game-title" style="margin: 0; color: white; font-weight: 900; text-transform: uppercase;">
+            <i class="fa-solid fa-comments-dollar text-success me-2 anim-float" style="display: inline-block;"></i> Khảo sát
+        </h3>
+        {% if is_admin %}
+            <a href="/admin/quanlyquy/bieuquyet/add/" class="admin-action-btn hover-lift" style="color: #10b981; border: 1px solid rgba(16, 185, 129, 0.5); padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 800; text-decoration: none;">
+                <i class="fa-solid fa-plus"></i> Tạo Vote
+            </a>
+        {% endif %}
+    </div>
+    
+    {% for poll in bieu_quyet_active %}
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <p style="color: var(--text-light); font-size: 11px; margin: 0;">Vote xong nhận ngay <span style="color: #10b981; font-weight: bold;">+10 Xu</span></p>
+            
+            {% if is_admin %}
+                <button onclick="openModal('adminVotersModal_{{ poll.id }}')" class="admin-action-btn hover-lift" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.5); cursor: pointer; background: transparent; padding: 4px 10px; font-size: 10px; font-weight: bold;">
+                    <i class="fa-solid fa-eye"></i> Ai đã Vote?
+                </button>
+            {% endif %}
+        </div>
+
+        <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
+            <p style="margin: 0 0 10px 0; font-weight: 800; color: white; font-size: 13px; line-height: 1.4;">Q: {{ poll.cau_hoi }}</p>
+            
+            {% if poll.id in voted_poll_ids %}
+                <div style="margin-top: 15px;">
+                    <p style="font-size: 11px; color: #10b981; font-weight: bold; margin-bottom: 15px; text-align: center; background: rgba(16, 185, 129, 0.1); padding: 5px; border-radius: 6px;">
+                        <i class="fa-solid fa-circle-check"></i> Đã vote (Tổng: {{ poll.tong_vote }} lượt)
+                    </p>
+                    
+                    {% for pa in poll.cac_phuong_an.all %}
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 12px; color: white; margin-bottom: 6px; font-weight: 600;">
+                                <span>{{ pa.noi_dung }}</span>
+                                <span style="font-weight: 900; color: #38bdf8;">{{ pa.phan_tram }}% ({{ pa.luot_chon }})</span>
                             </div>
-                            
-                            {% for poll in bieu_quyet_active %}
-                                <p style="color: var(--text-light); font-size: 11px; margin-bottom: 10px;">Vote xong nhận ngay <span style="color: #10b981; font-weight: bold;">+10 Xu</span></p>
-                                <div style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 10px;">
-                                    <p style="margin: 0 0 10px 0; font-weight: 800; color: white; font-size: 13px; line-height: 1.4;">Q: {{ poll.cau_hoi }}</p>
-                                    
-                                    {% if poll.id in voted_poll_ids %}
-                                        <div style="text-align: center; padding: 10px; background: rgba(16, 185, 129, 0.1); color: #10b981; border-radius: 8px; font-size: 12px; font-weight: bold;"><i class="fa-solid fa-check-circle"></i> Đã ghi nhận bình chọn</div>
-                                    {% else %}
-                                        <div id="poll-btns-{{ poll.id }}">
-                                            <button onclick="submitVote({{ poll.id }})" style="width: 100%; padding: 10px; background: transparent; border: 1px solid rgba(16, 185, 129, 0.5); color: var(--text-light); border-radius: 8px; margin-bottom: 8px; text-align: left; font-size: 12px; cursor: pointer; transition: 0.2s;" class="hover-lift">A. Phương án 1</button>
-                                            <button onclick="submitVote({{ poll.id }})" style="width: 100%; padding: 10px; background: transparent; border: 1px solid rgba(16, 185, 129, 0.5); color: var(--text-light); border-radius: 8px; text-align: left; font-size: 12px; cursor: pointer; transition: 0.2s;" class="hover-lift">B. Phương án 2</button>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            {% empty %}
-                                {% if is_admin %}<div style="text-align: center; padding: 40px 10px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; color: var(--text-light); font-size: 12px;"><i class="fa-solid fa-box-open mb-3" style="font-size: 30px; opacity: 0.5;"></i><br>Chưa có cuộc bình chọn nào.</div>{% endif %}
-                            {% endfor %}
+                            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                                <div style="width: {{ pa.phan_tram }}%; height: 100%; background: linear-gradient(90deg, #0ea5e9, #38bdf8); border-radius: 4px; box-shadow: 0 0 10px rgba(56, 189, 248, 0.5); transition: width 1s ease-in-out;"></div>
+                            </div>
                         </div>
-                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div id="poll-btns-{{ poll.id }}">
+                    {% for pa in poll.cac_phuong_an.all %}
+                        <button onclick="window.submitVoteCustom({{ poll.id }}, {{ pa.id }})" style="width: 100%; padding: 10px; background: transparent; border: 1px solid rgba(16, 185, 129, 0.5); color: var(--text-light); border-radius: 8px; margin-bottom: 8px; text-align: left; font-size: 12px; cursor: pointer; transition: 0.2s;" class="hover-lift">{{ forloop.counter }}. {{ pa.noi_dung }}</button>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+        
+    {% empty %}
+        {% if is_admin %}
+        <div style="text-align: center; padding: 40px 10px; border: 1px dashed rgba(255,255,255,0.1); border-radius: 12px; color: var(--text-light); font-size: 12px;">
+            <i class="fa-solid fa-box-open mb-3" style="font-size: 30px; opacity: 0.5;"></i><br>Chưa có cuộc bình chọn nào.
+        </div>
+        {% endif %}
+    {% endfor %}
+    
+</div>
+{% endif %}
                     </div>
                 </div>
 
@@ -601,6 +639,42 @@
             </div>
         </div>
     </div>
+
+    {% if is_admin %}
+    {% for poll in bieu_quyet_active %}
+    <div class="modal-overlay" id="adminVotersModal_{{ poll.id }}" style="z-index: 10000;">
+        <div class="modal-content" style="width: 450px; background: #1e293b; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 20px; padding: 25px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: white; margin: 0; font-weight: 900;"><i class="fa-solid fa-eye text-info"></i> Danh sách Cử tri</h3>
+                <button onclick="closeModal('adminVotersModal_{{ poll.id }}')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <p style="color: #cbd5e1; font-size: 13px; margin-bottom: 20px; font-weight: bold;">Câu hỏi: {{ poll.cau_hoi }}</p>
+            
+            <div style="max-height: 400px; overflow-y: auto; padding-right: 10px;" class="quest-scrollbar">
+                {% for pa in poll.cac_phuong_an.all %}
+                <div style="margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
+                        <span style="color: #38bdf8; font-weight: 800; font-size: 13px;">{{ pa.noi_dung }}</span>
+                        <span style="color: white; font-weight: bold; font-size: 12px; background: rgba(56, 189, 248, 0.2); padding: 2px 8px; border-radius: 10px;">{{ pa.luot_chon }} người</span>
+                    </div>
+                    
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        {% for chitiet in pa.danh_sach_nguoi_vote %}
+                            <span style="background: rgba(255,255,255,0.05); color: #cbd5e1; font-size: 11px; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">
+                                <i class="fa-solid fa-user-astronaut" style="margin-right: 3px; color: #94a3b8;"></i> {{ chitiet.thanh_vien.ho_ten }}
+                            </span>
+                        {% empty %}
+                            <span style="color: #64748b; font-size: 11px; font-style: italic;">Chưa có ai chọn phương án này.</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="{% static 'quanlyquy/js/gamification.js' %}?v=999"></script>

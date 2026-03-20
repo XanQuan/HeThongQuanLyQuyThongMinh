@@ -364,3 +364,52 @@ window.handleQuestGo = function(questName) {
         if(typeof window.toggleChatbot === 'function') window.toggleChatbot();
     } 
 };
+
+window.submitVoteCustom = function(pollId, phuongAnId) {
+    // 1. Hàm tự động rà quét Token bảo mật (Không lo lỗi 403)
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 2. Tạo hiệu ứng Loading để sếp biết là nút đã nhận lệnh
+    const btn = event.currentTarget;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang nộp phiếu...';
+    btn.style.pointerEvents = 'none'; // Khóa nút chống bấm 2 lần
+
+    // 3. Bắn dữ liệu lên Server
+    fetch('/api/submit-vote/', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json', 
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ poll_id: pollId, phuong_an_id: phuongAnId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') { 
+            location.reload(); // Load lại trang để hiện thanh tiến độ %
+        } else { 
+            alert("⚠️ Lỗi: " + data.message); 
+            btn.innerHTML = originalText;
+            btn.style.pointerEvents = 'auto';
+        }
+    })
+    .catch(err => {
+        alert("⚠️ Không thể kết nối đến máy chủ!");
+        btn.innerHTML = originalText;
+        btn.style.pointerEvents = 'auto';
+    });
+};

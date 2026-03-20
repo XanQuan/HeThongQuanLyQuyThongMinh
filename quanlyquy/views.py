@@ -11,7 +11,7 @@ from django.db.models import Sum, Q, Count
 from django.db.models.functions import TruncMonth
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.conf import settings
@@ -22,7 +22,7 @@ from .models import (
     GiaoDich, LichSuGiaoDichXu, ThanhVien, TaiSan, LoaiQuy, DotThu, 
     MucTieuQuy, SuKienNhacViec, User, QuaTang, 
     NhiemVu, BieuQuyet, HuyHieuThanhVien, QATestingLog, 
-    LichSuWebhook, DanhMucThuChi, ThongBaoBuuTa
+    LichSuWebhook, DanhMucThuChi, ThongBaoBuuTa, ChiTietBinhChon
 )
 from .utils import format_money
 
@@ -599,16 +599,35 @@ def gamification_view(request):
     nhiem_vu_list = NhiemVu.objects.filter(is_active=True).order_by('id')
     bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True)
     cua_hang_items = QuaTang.objects.filter(is_active=True)[:3]
-
-    # 🏆 6. BẢNG XẾP HẠNG (Kèm Huy hiệu Đẳng cấp)
-    top_dai_gia_raw = ThanhVien.objects.all().order_by('-tong_xu_tich_luy')[:5]
-    top_dai_gia = []
     
+
+   # 🏆 6. BẢNG XẾP HẠNG "ĐẠI GIA CHÂN CHÍNH" (Chỉ tính tiền thật nộp vào quỹ)
+    top_dai_gia_raw = ThanhVien.objects.annotate(
+        tong_tien_that=Sum('giaodich__so_tien', filter=Q(giaodich__loai='THU', giaodich__is_an_danh=False))
+    ).filter(tong_tien_that__gt=0).order_by('-tong_tien_that')[:5]
+    
+    top_dai_gia = []
     for tv in top_dai_gia_raw:
+        # Quy đổi tiền thật ra Điểm Cống Hiến (10.000 VNĐ = 1 Điểm)
+        tv.diem_cong_hien = int((tv.tong_tien_that or 0) / 1000)
+        
         # Lấy tối đa 3 huy hiệu xịn nhất của người này để khoe trên bảng vàng
         huy_hieus = HuyHieuThanhVien.objects.filter(thanh_vien=tv).select_related('huy_hieu')[:3]
         tv.danh_sach_huy_hieu = [hh.huy_hieu for hh in huy_hieus]
         top_dai_gia.append(tv)
+
+    # --- LOGIC TÍNH % VOTE HIỂN THỊ RA HTML ---
+    bieu_quyet_active = BieuQuyet.objects.filter(dang_mo=True).prefetch_related('cac_phuong_an')
+    for poll in bieu_quyet_active:
+        tong_vote = sum(pa.luot_chon for pa in poll.cac_phuong_an.all())
+        poll.tong_vote = tong_vote
+        
+        for pa in poll.cac_phuong_an.all():
+            pa.phan_tram = int((pa.luot_chon / tong_vote) * 100) if tong_vote > 0 else 0
+            
+            # ĐẶC QUYỀN ADMIN: Móc danh sách những người đã chọn phương án này
+            if is_admin:
+                pa.danh_sach_nguoi_vote = ChiTietBinhChon.objects.filter(phuong_an=pa).select_related('thanh_vien')
 
     # 7. ĐÓNG GÓI DỮ LIỆU ĐẨY RA GIAO DIỆN
     context = {

@@ -17,7 +17,7 @@ from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 
 # Import đầy đủ các Models
-from .models import GiaoDich, ThanhVien, LoaiQuy, DotThu, MucTieuQuy, LichSuGiaoDichXu, KhoDoThanhVien, QuaTang, HuyHieu, HuyHieuThanhVien
+from .models import GiaoDich, ThanhVien, LoaiQuy, DotThu, MucTieuQuy, LichSuGiaoDichXu, KhoDoThanhVien, QuaTang, HuyHieu, HuyHieuThanhVien, PhuongAnBieuQuyet,BieuQuyet, ChiTietBinhChon
 from .utils import format_money
 try:
     from google import genai
@@ -330,6 +330,7 @@ def api_chart_data(request):
 @login_required
 def api_chatbot(request):
     try:
+        check_and_reward_quest(request, 'Lời chào tới FundBot')
         data = json.loads(request.body.decode('utf-8'))
         message = data.get('message', '').strip().lower() 
         
@@ -363,7 +364,7 @@ def api_chatbot(request):
             reply = f"⚠️ Hiện tại có {so_nguoi_no} người đang bị đánh dấu nợ xấu: {ten_nguoi_no}"
         else:
             reply = f"Xin lỗi sếp, em chưa hiểu câu: '{message}'. Sếp thử hỏi về 'số dư', 'giao dịch mới nhất' xem sao ạ!"
-            check_and_reward_quest(request, 'Lời chào tới FundBot')
+            
 
         return JsonResponse({'status': 'success', 'reply': reply}, json_dumps_params={'ensure_ascii': False})
     except Exception as e:
@@ -550,35 +551,74 @@ def api_spin_gacha(request):
         print(traceback.format_exc())
         return JsonResponse({'status': 'error', 'message': f'LỖI DATABASE: {str(e)}'})
 # ==========================================
-# API: VOTE KHẢO SÁT (CỘNG 10 XU)
+# API: VOTE KHẢO SÁT (BẢN BỌC THÉP CHỐNG CRASH)
 # ==========================================
 @csrf_exempt
 @login_required
 @transaction.atomic
 def api_submit_vote(request):
-    if request.method == 'POST':
-        check_and_reward_quest(request, 'Tiếng nói cử tri')
-        data = json.loads(request.body)
-        poll_id = data.get('poll_id')
-        
-        tv = ThanhVien.objects.filter(mssv=getattr(request.user, 'mssv', '')).first()
-        if not tv: tv = ThanhVien.objects.filter(email=getattr(request.user, 'email', '')).first()
-        if not tv: return JsonResponse({'status': 'error', 'message': 'Không tìm thấy tài khoản!'})
+    try:
+        if request.method == 'POST':
+            # Nhét import vào thẳng đây để đảm bảo 100% không bị sót
+            from .models import PhuongAnBieuQuyet, ThanhVien, LichSuGiaoDichXu
+            
+            check_and_reward_quest(request, 'Tiếng nói cử tri')
+            data = json.loads(request.body)
+            poll_id = data.get('poll_id')
+            phuong_an_id = data.get('phuong_an_id')
+            user = request.user
+            
+            # 1. Tìm/Tạo hồ sơ thành viên
+            tv = ThanhVien.objects.filter(user=user).first()
+            if not tv and getattr(user, 'mssv', ''): tv = ThanhVien.objects.filter(mssv=user.mssv).first()
+            if not tv and getattr(user, 'email', ''): tv = ThanhVien.objects.filter(email=user.email).first()
+            
+            if not tv:
+                import time
+                tv = ThanhVien.objects.create(
+                    ho_ten=user.full_name or user.username,
+                    mssv=user.mssv or f"ADMIN-{user.id}-{int(time.time())}",
+                    user=user, vi_xu=getattr(user, 'credit_score', 0)
+                )
+            elif not tv.user:
+                tv.user = user
+                tv.save()
 
-        # Check xem đã vote chưa
-        da_vote = LichSuGiaoDichXu.objects.filter(thanh_vien=tv, ly_do=f"Vote khảo sát ID:{poll_id}").exists()
-        if da_vote:
-            return JsonResponse({'status': 'error', 'message': 'Bạn đã tham gia bình chọn này rồi!'})
+            if not tv: return JsonResponse({'status': 'error', 'message': 'Lỗi tài khoản!'})
 
-        # Cộng 10 Xu
-        tv.vi_xu += 10
-        tv.tong_xu_tich_luy += 10
-        tv.save()
+            # 2. Check xem đã vote chưa
+            da_vote = LichSuGiaoDichXu.objects.filter(thanh_vien=tv, ly_do=f"Vote khảo sát ID:{poll_id}").exists()
+            if da_vote: return JsonResponse({'status': 'error', 'message': 'Sếp đã tham gia bình chọn này rồi!'})
 
-        # Lưu lịch sử để khóa vote
-        LichSuGiaoDichXu.objects.create(thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=10, ly_do=f"Vote khảo sát ID:{poll_id}")
-        return JsonResponse({'status': 'success', 'message': 'Cảm ơn bạn đã góp ý! +10 Xu'})
-    return JsonResponse({'status': 'error'})
+            # 3. LÕI VOTE: TĂNG LƯỢT BÌNH CHỌN CHO PHƯƠNG ÁN ĐƯỢC CHỌN
+            phuong_an = PhuongAnBieuQuyet.objects.filter(id=phuong_an_id).first()
+            if phuong_an:
+                phuong_an.luot_chon += 1
+                phuong_an.save()
+            # [MỚI CẤY VÀO]: Lưu lại bằng chứng đứa nào vote!
+                ChiTietBinhChon.objects.create(
+                    bieu_quyet_id=poll_id,
+                    phuong_an=phuong_an,
+                    thanh_vien=tv
+                    )
+
+            # 4. Trả thưởng 10 Xu
+            tv.vi_xu += 10
+            tv.tong_xu_tich_luy += 10
+            tv.save()
+
+            LichSuGiaoDichXu.objects.create(
+                thanh_vien=tv, loai_giao_dich='CONG_XU', so_xu=10, 
+                ly_do=f"Vote khảo sát ID:{poll_id}"
+            )
+            
+            return JsonResponse({'status': 'success', 'message': 'Đã ghi nhận bình chọn! +10 Xu'})
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc() # In chi tiết lỗi ra màn hình đen (Terminal)
+        # Ném đúng lỗi ra ngoài màn hình cho sếp xem thay vì báo mất kết nối
+        return JsonResponse({'status': 'error', 'message': f'Lỗi hệ thống: {str(e)}'})
 
 # ==========================================
 # API 3: MUA ĐỒ TRONG SHOP (TRỪ XU)

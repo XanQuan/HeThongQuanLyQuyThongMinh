@@ -6,16 +6,19 @@ from django.urls import reverse, path
 from django.shortcuts import render, redirect
 from django.db.models import Sum
 import pandas as pd
-
-from import_export.admin import ImportExportModelAdmin
-from unfold.admin import ModelAdmin
 from unfold.decorators import action, display
 
+from import_export.admin import ImportExportModelAdmin
+from unfold.admin import ModelAdmin, TabularInline # Thêm TabularInline của Unfold cho đẹp
+
+# ==========================================
+# THÊM PhuongAnBieuQuyet VÀO ĐÂY NÈ SẾP
+# ==========================================
 from .models import (
     User, LopHoc, ThanhVien, LoaiQuy, DotThu, TaiSan, GiaoDich, 
     TienDoDongQuy, DanhMucThuChi, MucTieuQuy, SuKienNhacViec,
     PhieuDeXuatChi, KhieuNai, QuaTang, NhiemVu, LichSuWebhook, 
-    BieuQuyet, HuyHieu, HuyHieuThanhVien
+    BieuQuyet, PhuongAnBieuQuyet, HuyHieu, HuyHieuThanhVien
 )
 
 admin.site.site_header = "HỆ THỐNG TÀI CHÍNH FUNDSMART PRO"
@@ -46,7 +49,6 @@ class ThanhVienAdmin(ModelAdmin, ImportExportModelAdmin):
 
     @display(description="Trạng thái tài chính")
     def display_status(self, obj):
-        # FIX LỖI: Đã thêm {} và truyền chữ vào trong format_html
         if obj.is_no_xau: 
             return format_html('<span style="background-color: rgba(244, 63, 94, 0.1); color: #f43f5e; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 11px;">{}</span>', 'NỢ XẤU')
         return format_html('<span style="background-color: rgba(16, 185, 129, 0.1); color: #10b981; padding: 4px 10px; border-radius: 6px; font-weight: bold; font-size: 11px;">{}</span>', 'AN TOÀN')
@@ -73,7 +75,6 @@ class LoaiQuyAdmin(ModelAdmin):
     @display(description="⚡ Chuyển tiền")
     def dieu_chuyen_nhanh(self, obj):
         url = reverse('admin:quanlyquy_giaodich_add') + f"?loai=NB&loai_quy={obj.id}"
-        # FIX LỖI: Đã thêm {} cho chữ ĐIỀU CHUYỂN
         return format_html('<a href="{}" style="background:#6366f1; color:white; padding:4px 12px; border-radius:6px; font-size:11px; font-weight:700;">{}</a>', url, 'ĐIỀU CHUYỂN')
 
 @admin.register(DanhMucThuChi)
@@ -168,13 +169,8 @@ class KhieuNaiAdmin(ModelAdmin): list_display = ('tieu_de', 'thanh_vien', 'trang
 
 @admin.register(NhiemVu)
 class NhiemVuAdmin(admin.ModelAdmin):
-    # Đổi tên cột cho đúng với models mới
     list_display = ('ten_nhiem_vu', 'loai_nhiem_vu', 'phan_thuong_xu', 'is_active', 'created_at')
-    
-    # Đổi tên cột cho phép edit nhanh
     list_editable = ('is_active',) 
-    
-    # Tiện tay thêm luôn bộ lọc cho Pro
     list_filter = ('loai_nhiem_vu', 'is_active')
     search_fields = ('ten_nhiem_vu',)
 
@@ -184,8 +180,18 @@ class QuaTangAdmin(ModelAdmin): list_display = ('ten_qua', 'gia_xu', 'so_luong_k
 @admin.register(LichSuWebhook)
 class WebhookAdmin(ModelAdmin): list_display = ('ma_giao_dich_ngan_hang', 'so_tien', 'trang_thai_xu_ly')
 
+# ==========================================
+# CẤU HÌNH GIAO DIỆN TẠO KHẢO SÁT CHUYÊN NGHIỆP
+# ==========================================
+class PhuongAnInline(TabularInline):
+    model = PhuongAnBieuQuyet
+    extra = 2  # Hiện sẵn 2 dòng trắng để Admin nhập Phương án A, Phương án B
+    
 @admin.register(BieuQuyet)
-class BieuQuyetAdmin(ModelAdmin): list_display = ('cau_hoi', 'dang_mo', 'han_chot')
+class BieuQuyetAdmin(ModelAdmin): 
+    list_display = ('cau_hoi', 'dang_mo', 'han_chot')
+    inlines = [PhuongAnInline] # Gắn cái bảng nhập Phương án vào dưới đít bảng Câu hỏi
+    list_editable = ('dang_mo',) # Cho phép bật/tắt bình chọn nhanh ở ngoài danh sách
 
 @admin.register(HuyHieu)
 class HuyHieuAdmin(ModelAdmin): 
