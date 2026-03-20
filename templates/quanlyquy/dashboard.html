@@ -124,7 +124,7 @@
                 
     <div class="animate-fade-in mb-4" style="animation-delay: 0.1s;">
        <h2 class="d-flex align-items-center" style="justify-content: flex-start; gap: 10px; margin: 0;">
-          <span class="text-gradient-animated">Tổng Quan Hệ Thống</span>
+         <span class="text-gradient-animated">{% if is_admin %}Tổng Quan Hệ Thống{% else %}Tổng Quan Của Bạn{% endif %}</span>
     
            <svg class="audio-bars" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 5px rgba(255,255,255,0.3));">
              <rect class="bar1" x="3" y="13" width="4" height="7" rx="2" fill="#ffffff" />
@@ -133,7 +133,7 @@
            </svg>
        </h2>
         <p class="text-sm mt-2 font-weight-500">
-            Phân tích dòng tiền của sếp <span class="text-white font-bold">{{ request.user.full_name|default:request.user.username }}</span> 👋
+            Phân tích dòng tiền của <span class="text-white font-bold">{{ request.user.full_name|default:request.user.username }}</span> 👋
         </p>
     </div>
 
@@ -465,7 +465,7 @@
     </div>
 
                 <div class="balance-section animate-fade-in glass-card success-glow" style="animation-delay: 0.2s; margin-top: 25px;">
-        <span class="text-[10px] font-black uppercase text-slate-500 tracking-widest">Tổng Vốn Hệ Thống</span>
+        <span class="text-[10px] font-black uppercase text-slate-500 tracking-widest">{% if is_admin %}Tổng Vốn Hệ Thống{% else %}Tổng Tiền Bạn Đã Nộp{% endif %}</span>
         <h1 class="sensitive-data shimmer-text" data-value="{{ so_du }} đ" style="font-size: 34px; margin: 8px 0;">*** đ</h1>
         <div class="d-flex items-center gap-2">
             <i class="fa-solid fa-circle-check text-emerald-500" style="font-size: 12px;"></i>

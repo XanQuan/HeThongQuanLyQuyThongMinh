@@ -1,9 +1,8 @@
 /* ======================================================
-   XỬ LÝ NGHIỆP VỤ TIẾN ĐỘ THU (tien_do.js) - BẢN HOÀN THIỆN
+   XỬ LÝ NGHIỆP VỤ TIẾN ĐỘ THU (tien_do.js) - BẢN FULL GỐC
    ====================================================== */
 
 // 1. TIỆN ÍCH HỆ THỐNG
-// Hàm lấy CSRF Token để bảo mật các yêu cầu POST từ Django
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -18,7 +17,7 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-// BỔ SUNG VÀO ĐẦU FILE TIEN_DO.JS
+
 window.openModal = function(id) { 
     const m = document.getElementById(id);
     if(m) {
@@ -32,7 +31,18 @@ window.closeModal = function(id) {
     if(m) m.style.display = 'none'; 
 };
 
-// 2. HIỂN THỊ THÔNG BÁO (TOAST)
+// 2. TỰ ĐỘNG THÊM DẤU CHẤM KHI NHẬP TIỀN (Gõ 200000 -> 200.000)
+window.formatMoneyInput = function(input) {
+    let value = input.value.replace(/\D/g, ""); 
+    if (value !== "") {
+        value = new Intl.NumberFormat('vi-VN').format(parseInt(value));
+        input.value = value;
+    } else {
+        input.value = "";
+    }
+}
+
+// 3. HIỂN THỊ THÔNG BÁO (TOAST)
 window.showToast = function(message, type = 'success') {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -51,13 +61,12 @@ window.showToast = function(message, type = 'success') {
     }, 4000);
 };
 
-// 3. XỬ LÝ MODAL KPI CHI TIẾT
-// Khắc phục lỗi "bấm vào không hiện thông tin" bằng cách dùng dữ liệu từ window.FUND_DATA
+// 4. XỬ LÝ MODAL KPI CHI TIẾT (FULL DỮ LIỆU CỦA SẾP)
 window.showKpiDetail = function(type) {
     const modal = document.getElementById('kpiModal');
     const title = document.getElementById('kpiModalTitle');
     const content = document.getElementById('kpiModalContent');
-    const d = window.FUND_DATA; // Cầu nối dữ liệu từ HTML
+    const d = window.FUND_DATA;
 
     if (!modal || !title || !content || !d) {
         console.error("Thiếu container modal hoặc window.FUND_DATA chưa được khai báo!");
@@ -68,12 +77,18 @@ window.showKpiDetail = function(type) {
         title.innerHTML = '<i class="fa-solid fa-flag-checkered" style="color: #a855f7;"></i> Chi Tiết Đợt Thu';
         content.innerHTML = `
             <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
-                <p><strong>Tên đợt thu:</strong> <span style="color: white;">${d.tenDot}</span></p>
-                <p><strong>Loại quỹ:</strong> <span style="color: var(--theme-primary);">${d.tenQuy}</span></p>
-                <p><strong>Định mức:</strong> <span style="color: white;">${d.dinhMuc} đ</span></p>
-                <p><strong>Hạn chót:</strong> <span style="color: #fca5a5; font-weight: 800;">${d.deadline}</span></p>
+                <p style="margin-bottom: 10px;"><strong>Tên đợt thu:</strong> <span style="color: white;">${d.tenDot}</span></p>
+                <p style="margin-bottom: 15px;"><strong>Loại quỹ:</strong> <span style="color: var(--theme-primary);">${d.tenQuy}</span></p>
+                <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; border: 1px dashed rgba(168, 85, 247, 0.4); margin-bottom: 15px;">
+                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #94a3b8;">Định mức cần nộp:</p>
+                    <p style="margin: 0 0 15px 0; font-size: 18px; font-weight: 900; color: #a855f7;">${new Intl.NumberFormat('vi-VN').format(d.dinhMuc)} đ <span style="font-size: 12px; font-weight: normal; color: #94a3b8;">/ thành viên</span></p>
+                    <p style="margin: 0 0 5px 0; font-size: 12px; color: #94a3b8;">Mục tiêu tổng (Cả lớp):</p>
+                    <p style="margin: 0 0 5px 0; font-size: 16px; font-weight: bold; color: white;">${d.totalNeeded} đ</p>
+                    <p style="margin: 0; font-size: 12px; color: #10b981;"><i class="fa-solid fa-chart-pie"></i> Đã gom được: ${d.totalCollected} đ (${d.percent}%)</p>
+                </div>
+                <p style="margin: 0;"><strong>Hạn chót:</strong> <span style="color: #fca5a5; font-weight: 800;">${d.deadline}</span></p>
             </div>`;
-    } 
+    }
     else if (type === 'tiendo') {
         title.innerHTML = '<i class="fa-solid fa-chart-pie" style="color: #10b981;"></i> Thống Kê Dòng Tiền';
         content.innerHTML = `
@@ -108,7 +123,7 @@ window.showKpiDetail = function(type) {
     modal.style.display = 'flex';
 };
 
-// 4. NGHIỆP VỤ NHẮC NỢ & DỌN DẸP THÔNG BÁO
+// 5. NGHIỆP VỤ NHẮC NỢ & DỌN DẸP THÔNG BÁO
 window.runMassRemind = function() {
     const btn = document.getElementById('massRemindBtn');
     if (!btn) return;
@@ -131,15 +146,12 @@ window.runMassRemind = function() {
     });
 };
 
-// 1. Hàm mở modal hỏi sếp
 window.clearNotifications = function(btn) {
-    // Lưu lại cái nút Dọn Rác để tí nữa gắn spinner vào nó
     window.lastClickedClearBtn = btn;
     const modal = document.getElementById('customConfirmModal');
     if(modal) modal.style.display = 'flex';
 };
 
-// 2. Hàm thực thi xóa thật sự (Bản dứt điểm "quay quài")
 window.executeDeleteNotifications = function() {
     const btn = window.lastClickedClearBtn;
     const modal = document.getElementById('customConfirmModal');
@@ -150,11 +162,10 @@ window.executeDeleteNotifications = function() {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     btn.style.pointerEvents = 'none';
 
-    // Gọi API xóa bưu tá
     fetch('/api/clear-notifications/', {
         method: 'POST',
         headers: { 
-            'X-CSRFToken': getCookie('csrftoken'), // Lấy token trực tiếp từ cookie
+            'X-CSRFToken': getCookie('csrftoken'), 
             'Content-Type': 'application/json'
         }
     })
@@ -164,11 +175,8 @@ window.executeDeleteNotifications = function() {
     })
     .then(data => {
         if(data.status === 'success') {
-            // Xóa badge trên chuông
             const badge = document.querySelector('.fa-bell + span');
             if(badge) badge.style.display = 'none';
-            
-            // Cập nhật giao diện trống
             const container = document.getElementById('notif-list-container');
             if(container) {
                 container.innerHTML = `<div style="text-align: center; padding: 50px 0;"><i class="fa-solid fa-mailbox" style="font-size: 30px; opacity: 0.1; margin-bottom: 20px;"></i><p style="font-weight: 800; color: white;">Hộp thư trống</p></div>`;
@@ -176,47 +184,111 @@ window.executeDeleteNotifications = function() {
             showToast("Hòm thư đã sạch bóng!", "success");
         }
     })
-    .catch(err => {
-        showToast("Lỗi: Không thể kết nối máy chủ!", "error");
-    })
+    .catch(() => showToast("Lỗi: Không thể kết nối máy chủ!", "error"))
     .finally(() => {
-        // ✅ QUAN TRỌNG: Dù thành công hay lỗi cũng phải dừng quay
         btn.innerHTML = originalHtml;
         btn.style.pointerEvents = 'auto';
     });
 };
 
-// 5. GÓP QUỸ HỘ (NỘP HỘ)
+// 6. XỬ LÝ NGHIỆP VỤ HẠCH TOÁN (PHÂN QUYỀN ADMIN & THÀNH VIÊN)
 window.submitNopHo = function() {
-    const amount = document.getElementById('nopHoAmount').value.replace(/\D/g, '');
-    const name = document.getElementById('nopHoName').value;
-    if (!amount || amount <= 0) { showToast("Số tiền không hợp lệ!", "error"); return; }
+    // 1. Truy xuất dữ liệu từ các trường thông tin trong Modal
+    const amountInput = document.getElementById('nopHoAmount');
+    const tvId = document.getElementById('nopHoId').value;
+    const tvName = document.getElementById('nopHoName').value;
+    const isAdmin = window.FUND_DATA?.isAdmin;
 
+    // 2. LÀM SẠCH SỐ LIỆU: Loại bỏ tất cả dấu chấm (.) và ký tự không phải số
+    // Chuyển đổi "200.000" thành "200000" để Backend xử lý tính toán
+    const cleanAmount = amountInput.value.replace(/\./g, "").replace(/\D/g, ""); 
+
+    // 3. KIỂM TRA TÍNH HỢP LỆ: Đảm bảo số tiền tối thiểu cho một nghiệp vụ
+    if (!cleanAmount || parseInt(cleanAmount) < 1000) {
+        showToast("Số tiền báo cáo không hợp lệ (Tối thiểu 1.000đ)!", "error");
+        amountInput.focus();
+        return;
+    }
+
+    // 4. UI: Tạm đóng Modal và thông báo theo vai trò hệ thống
     document.getElementById('nopHoModal').style.display = 'none';
-    showToast(`Đang xử lý nộp quỹ cho ${name}...`);
+    
+    const processingMsg = isAdmin 
+        ? `Hệ thống đang ghi nhận nghiệp vụ Nộp hộ cho: ${tvName}...` 
+        : "Hệ thống đang gửi xác nhận đóng quỹ cá nhân...";
+    showToast(processingMsg, "info");
 
+    // 5. THỰC THI API HẠCH TOÁN
     fetch('/api/nop-quy-ho/', {
         method: 'POST',
         headers: { 
             'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
+            'X-CSRFToken': getCookie('csrftoken') 
         },
         body: JSON.stringify({
-            tv_id: document.getElementById('nopHoId').value,
-            so_tien: amount,
+            tv_id: tvId,
+            so_tien: cleanAmount,
             dot_thu_id: window.FUND_DATA.dotThuId
         })
     })
     .then(res => res.json())
     .then(data => {
-        if(data.status === 'success') {
-            showToast(data.message, "success");
+        if (data.status === 'success') {
+            // Thông báo xác nhận hoàn tất dựa trên vai trò
+            const successMsg = isAdmin 
+                ? `Đã hoàn tất ghi nhận nộp hộ cho ${tvName}.` 
+                : "Xác nhận đóng quỹ thành công. Cảm ơn sếp!";
+            showToast(successMsg, "success");
+            
+            // Đồng bộ lại dữ liệu trang báo cáo sau 1 giây
             setTimeout(() => window.location.reload(), 1000);
-        } else showToast(data.message, "error");
+        } else {
+            throw new Error(data.message || "Giao dịch bị từ chối.");
+        }
+    })
+    .catch(err => {
+        showToast("Lỗi hệ thống: " + err.message, "error");
+        // Mở lại modal nếu có lỗi để sếp không phải nhập lại từ đầu
+        document.getElementById('nopHoModal').style.display = 'flex';
     });
 };
 
-// 6. CHATBOT AI LOGIC
+
+// 8. KHỞI TẠO MODAL GIAO DỊCH (TỐI ƯU TRẢI NGHIỆM VÀ ĐỊNH DẠNG)
+window.openNopQuyCaNhan = function(targetId, displayName) {
+    const modal = document.getElementById('nopHoModal');
+    const inputId = document.getElementById('nopHoId');
+    const inputName = document.getElementById('nopHoName');
+    const inputAmount = document.getElementById('nopHoAmount');
+
+    if (modal && inputId && inputName && inputAmount) {
+        inputId.value = targetId;
+        inputName.value = displayName || "Không xác định";
+        
+        // FIX LỖI "200": Ép về chuỗi -> Quét sạch ký tự lạ -> Ép lại thành số nguyên -> Đóng mộc VNĐ
+        let rawDinhMuc = String(window.FUND_DATA?.dinhMuc || "200000").replace(/\D/g, "");
+        inputAmount.value = new Intl.NumberFormat('vi-VN').format(parseInt(rawDinhMuc));
+
+        modal.style.display = 'flex';
+        modal.style.opacity = '0';
+        
+        setTimeout(() => {
+            modal.style.opacity = '1';
+            modal.style.transition = 'opacity 0.2s ease-in-out';
+            
+            // Tự động focus và bôi đen toàn bộ số tiền
+            inputAmount.focus();
+            inputAmount.setSelectionRange(0, inputAmount.value.length);
+        }, 50);
+
+        console.log(`[SYSTEM] Khởi tạo phiên hạch toán cho ID: ${targetId}`);
+    } else {
+        console.error("[CRITICAL] Lỗi cấu trúc Modal: Kiểm tra lại các ID trong HTML.");
+        showToast("Lỗi khởi tạo giao diện báo cáo!", "error");
+    }
+};
+
+// 7. CHATBOT AI LOGIC
 window.toggleChatbot = function() {
     const bot = document.getElementById('chatbot-window');
     if (!bot) return;
@@ -226,10 +298,18 @@ window.toggleChatbot = function() {
     bot.style.pointerEvents = isClosed ? 'auto' : 'none';
     if (isClosed) document.getElementById('chat-input')?.focus();
 };
+// 9. CẬP NHẬT NGÀY GIỜ & KHỞI TẠO
+function updateRealtimeDate() {
+    const el = document.getElementById('realtime-date');
+    if (el) {
+        const d = new Date();
+        const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+        el.innerText = `${days[d.getDay()]}, ${d.getDate()}/${d.getMonth() + 1}`;
+    }
+}
 
-// 7. KHỞI TẠO KHI TRANG SẴN SÀNG
 document.addEventListener('DOMContentLoaded', () => {
-    // Tự động gán sự kiện cho các nút chatbot
+    updateRealtimeDate();
     document.getElementById('chatbot-fab')?.addEventListener('click', toggleChatbot);
     document.getElementById('close-bot')?.addEventListener('click', toggleChatbot);
     document.getElementById('send-chat')?.addEventListener('click', sendChatMessage);

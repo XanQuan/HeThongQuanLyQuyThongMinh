@@ -383,40 +383,36 @@
 
                 <div style="display: flex; flex-direction: column; gap: 25px;">
                     
-                    {% if cua_hang_items or is_admin %}
                     <div class="game-card animate-fade-in hover-lift" style="animation-delay: 0.2s; padding: 25px; background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(0,0,0,0.4) 100%); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 24px; cursor: pointer; position: relative; overflow: hidden; box-shadow: 0 10px 30px rgba(239, 68, 68, 0.1);" onclick="window.location.href='/cua-hang/'">
-                        
-                        <div class="anim-float" style="position: absolute; right: -10px; bottom: -10px;">
-                            <i class="fa-solid fa-basket-shopping" style="font-size: 90px; color: rgba(239, 68, 68, 0.2); transform: rotate(-15deg);"></i>
-                        </div>
-                        
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; z-index: 1;">
-                           <h3 class="game-title" style="margin: 0; color: white; font-weight: 900; text-transform: uppercase;">
-                                <i class="fa-solid fa-store text-danger me-2 anim-float" style="display: inline-block;"></i> Shop Đặc Quyền
-                           </h3>
-                            {% if is_admin %}
-                            <a href="/admin/quanlyquy/quatang/add/" class="admin-action-btn" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.5);"><i class="fa-solid fa-plus"></i> Thêm Quà</a>
-                            {% else %}
-                            <div class="anim-float" style="width: 35px; height: 35px; background: rgba(239, 68, 68, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #f87171;">
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div style="display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1;">
-                            {% for item in cua_hang_items %}
-                                {% empty %}
-                                {% if is_admin %}
-                                <div style="text-align: center; padding: 15px; color: #fca5a5; font-style: italic; font-size: 11px;">
-                                    Cửa hàng đang trống. Bổ sung vật phẩm ngay!
-                                </div>
-                                {% else %}
-                                <p style="color: #fca5a5; font-size: 12px; margin: 0; font-weight: 600;">Tiêu Xu đổi lấy Voucher miễn trực nhật, giảm tiền quỹ và hàng ngàn quà tặng khác!</p>
-                                {% endif %}
-                            {% endfor %}
-                        </div>
-                    </div>
-                    {% endif %} 
+    
+    <div class="anim-float" style="position: absolute; right: -10px; bottom: -10px;">
+        <i class="fa-solid fa-basket-shopping" style="font-size: 90px; color: rgba(239, 68, 68, 0.2); transform: rotate(-15deg);"></i>
+    </div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; z-index: 1;">
+        <h3 class="game-title" style="margin: 0; color: white; font-weight: 900; text-transform: uppercase;">
+            <i class="fa-solid fa-store text-danger me-2 anim-float" style="display: inline-block;"></i> Shop Đặc Quyền
+        </h3>
+        
+        {% if is_admin %}
+        <a href="/admin/quanlyquy/quatang/add/" class="admin-action-btn" style="color: #fca5a5; border-color: rgba(239, 68, 68, 0.5);"><i class="fa-solid fa-plus"></i> Thêm Quà</a>
+        {% else %}
+        <div class="anim-float" style="width: 35px; height: 35px; background: rgba(239, 68, 68, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #f87171;">
+            <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div style="display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1;">
+        {% if not cua_hang_items and is_admin %}
+            <div style="text-align: center; padding: 15px; color: #fca5a5; font-style: italic; font-size: 11px;">
+                Cửa hàng đang trống. Sếp bổ sung vật phẩm ngay nhé!
+            </div>
+        {% else %}
+            <p style="color: #fca5a5; font-size: 12px; margin: 0; font-weight: 600;">Tiêu Xu đổi lấy Voucher miễn trực nhật, giảm tiền quỹ và hàng ngàn quà tặng khác!</p>
+        {% endif %}
+    </div>
+</div>
                     
                     <div class="game-card animate-fade-in" style="animation-delay: 0.3s; padding: 25px; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(251, 191, 36, 0.2); border-radius: 24px; flex: 1; backdrop-filter: blur(10px);">
                         <div style="text-align: center; margin-bottom: 25px;">
@@ -455,7 +451,7 @@
                                     </div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <span style="font-weight: 900; font-size: 16px; color: #fbbf24; display: block; text-shadow: 0 0 10px rgba(251,191,36,0.3);">+{{ tv.tong_xu_tich_luy|default:0 }}</span>
+                                    <span style="font-weight: 900; font-size: 16px; color: #fbbf24; display: block; text-shadow: 0 0 10px rgba(251,191,36,0.3);">+{{ tv.diem_cong_hien|default:0 }}</span>
                                     <span style="color: #f59e0b; font-size: 9px; font-weight: 800; text-transform: uppercase;">Cống Hiến</span>
                                 </div>
                             </div>
